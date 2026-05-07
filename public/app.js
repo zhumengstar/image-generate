@@ -5,6 +5,7 @@ const state = {
   firstRun: false,
   view: "home",
   forceHero: false,
+  showGenerationView: false,
   history: [],
   generating: false,
   polishing: false,
@@ -566,7 +567,7 @@ function setView(view) {
 }
 
 function shouldShowHero() {
-  return state.forceHero || state.history.length === 0;
+  return state.forceHero || !state.showGenerationView;
 }
 
 function renderAll() {
@@ -661,6 +662,7 @@ function openRecentPreview(item) {
     state.draftPrompt = item.prompt;
     closeModal();
     state.forceHero = true;
+    state.showGenerationView = false;
     setView("home");
     syncComposers();
     setTimeout(() => $(".prompt-box", elements.heroComposerMount)?.focus(), 120);
@@ -861,6 +863,7 @@ async function submitGeneration(form) {
   };
   state.history.push(item);
   state.forceHero = false;
+  state.showGenerationView = true;
   state.generating = true;
   state.references = [];
   startFunMessages();
@@ -1173,6 +1176,7 @@ function bindPromptCards(root) {
       const prompt = getPromptSource().find((item) => item.id === Number(button.dataset.usePrompt));
       state.draftPrompt = prompt.prompt;
       state.forceHero = true;
+      state.showGenerationView = false;
       setView("home");
       syncComposers();
       showToast(state.lang === "zh" ? "已填入生成框" : "Sent to composer", "ri-arrow-right-line");
@@ -1870,6 +1874,7 @@ async function submitAuth(event) {
     await loadHistory();
     closeModal();
     state.forceHero = true;
+    state.showGenerationView = false;
     renderAll();
     window.scrollTo({ top: 0, behavior: "auto" });
     restartHeroVideo();
@@ -1886,6 +1891,7 @@ async function logout() {
   state.history = [];
   state.checkin = { checkedInToday: false, credit: state.settings?.checkinCredit || 1 };
   state.forceHero = true;
+  state.showGenerationView = false;
   renderAll();
   window.scrollTo({ top: 0, behavior: "auto" });
   restartHeroVideo();
@@ -2123,6 +2129,7 @@ async function bootstrap() {
     showToast(error.message, "ri-error-warning-line");
   }
   state.forceHero = true;
+  state.showGenerationView = false;
   renderAll();
   setupHeroVideo();
   if (state.view === "home") {
@@ -2133,6 +2140,7 @@ async function bootstrap() {
 function bindGlobalEvents() {
   elements.brandBtn.addEventListener("click", () => {
     state.forceHero = true;
+    state.showGenerationView = false;
     setView("home");
     window.scrollTo({ top: 0, behavior: "smooth" });
     restartHeroVideo();
@@ -2159,9 +2167,14 @@ function bindGlobalEvents() {
     state.promptVisible = 20;
     renderLibrary();
   });
-  $("[data-editor-home]", elements.editorView).addEventListener("click", () => setView("home"));
+  $("[data-editor-home]", elements.editorView).addEventListener("click", () => {
+    state.forceHero = true;
+    state.showGenerationView = false;
+    setView("home");
+  });
   $("[data-editor-create]", elements.editorView).addEventListener("click", () => {
     state.forceHero = true;
+    state.showGenerationView = false;
     setView("home");
   });
   $$("[data-editor-tool]", elements.editorView).forEach((button) => {
