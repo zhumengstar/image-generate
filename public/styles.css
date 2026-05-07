@@ -712,8 +712,8 @@ a {
 }
 
 .recent-tile {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-rows: auto 1fr;
   width: 100%;
   height: 100%;
   margin: 0;
@@ -735,10 +735,10 @@ a {
 
 .recent-visual {
   width: 100%;
-  aspect-ratio: 1 / 1;
+  aspect-ratio: 4 / 3;
   display: grid;
   place-items: center;
-  background: #f1f5f9;
+  background: #eef2f7;
 }
 
 .recent-tile.short .recent-visual {
@@ -760,8 +760,9 @@ a {
 }
 
 .recent-visual img {
-  object-fit: contain;
-  background: #fff;
+  object-fit: cover;
+  object-position: center;
+  background: #eef2f7;
   transform: translateZ(0);
 }
 
@@ -777,8 +778,9 @@ a {
   display: grid;
   gap: 5px;
   grid-template-rows: auto 1fr;
-  min-height: 104px;
-  padding: 12px 13px 14px;
+  min-height: 116px;
+  padding: 14px 14px 16px;
+  align-content: start;
 }
 
 .recent-caption strong {
