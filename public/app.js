@@ -667,9 +667,11 @@ function renderRecentCreations() {
   });
 }
 
-function openRecentPreview(item) {
+function openRecentPreview(item, options = {}) {
+  state.restoreWorksOnViewerClose = Boolean(options.restoreWorks);
+  const imageUrl = item.image ? promptImageUrl(item.image) : "";
   const visual = item.image
-    ? `<img class="preview-image" src="${item.image}" alt="${escapeHtml(truncate(item.prompt, 80))}">`
+    ? `<img class="preview-image" src="${escapeHtml(imageUrl)}" alt="${escapeHtml(truncate(item.prompt, 80))}">`
     : `<div class="preview-gradient" style="--art-bg:${item.colors}"><i class="${item.icon}"></i></div>`;
   openModal(`
     <section class="modal preview-modal">
@@ -679,7 +681,7 @@ function openRecentPreview(item) {
         <h2>${escapeHtml(item.title || text("preview"))}</h2>
         <p>${escapeHtml(item.prompt)}</p>
         <div class="message-actions preview-actions">
-          ${item.image ? `<a href="${item.image}" download="${escapeHtml(item.id)}.png"><i class="ri-download-line"></i>${text("download")}</a>` : ""}
+          ${imageUrl ? `<a href="${escapeHtml(imageUrl)}" download="${escapeHtml(item.id)}.png"><i class="ri-download-line"></i>${text("download")}</a>` : ""}
           ${item.image ? `<button type="button" data-preview-editor><i class="ri-magic-line"></i>${text("openEditor")}</button>` : ""}
           <button type="button" data-preview-use><i class="ri-edit-line"></i>${text("edit")}</button>
           <button type="button" data-preview-copy><i class="ri-file-copy-line"></i>${text("copy")}</button>
@@ -689,6 +691,7 @@ function openRecentPreview(item) {
   `);
   $("[data-preview-use]", elements.modalLayer).addEventListener("click", () => {
     state.draftPrompt = item.prompt;
+    state.restoreWorksOnViewerClose = false;
     closeModal();
     state.forceHero = true;
     state.showGenerationView = false;
@@ -697,8 +700,9 @@ function openRecentPreview(item) {
     setTimeout(() => $(".prompt-box", elements.heroComposerMount)?.focus(), 120);
   });
   $("[data-preview-editor]", elements.modalLayer)?.addEventListener("click", () => {
+    state.restoreWorksOnViewerClose = false;
     closeModal();
-    openImageEditor(item.image, item.prompt);
+    openImageEditor(imageUrl, item.prompt);
   });
   $("[data-preview-copy]", elements.modalLayer).addEventListener("click", async () => {
     await copyText(item.prompt);
@@ -1808,7 +1812,16 @@ async function loadMyWorks(forceReload = false) {
   $$("[data-work-view]", grid).forEach((button) => {
     button.addEventListener("click", () => {
       const item = state.history.find((entry) => String(entry.id) === button.dataset.workView);
-      if (item?.images?.[0]) openImageViewer(item.images[0], item.prompt, item.id, { restoreWorks: true });
+      if (item?.images?.[0]) {
+        openRecentPreview({
+          id: item.id,
+          title: truncate(item.prompt, 36),
+          prompt: item.prompt,
+          image: item.images[0],
+          isPublic: Boolean(item.isPublic),
+          time: item.time
+        }, { restoreWorks: true });
+      }
     });
   });
   $$("[data-work-delete]", grid).forEach((button) => {
