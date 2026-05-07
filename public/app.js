@@ -855,8 +855,11 @@ function syncComposers(sourceForm) {
     $(".send-button", form).disabled = state.generating || !state.settings?.hasApiKey;
     const polishButton = $(".polish-button", form);
     if (polishButton) {
+      const label = state.polishing ? text("polishing") : text("polish");
       polishButton.disabled = state.generating || state.polishing;
-      $("span", polishButton).textContent = state.polishing ? text("polishing") : text("polish");
+      polishButton.title = label;
+      polishButton.setAttribute("aria-label", label);
+      $("span", polishButton).textContent = label;
     }
   });
 }

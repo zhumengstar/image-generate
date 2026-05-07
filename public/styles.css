@@ -553,17 +553,33 @@ a {
 }
 
 .polish-button {
+  width: 48px;
+  min-width: 48px;
   min-height: 54px;
-  min-width: 96px;
-  padding: 0 16px;
+  padding: 0;
   border-radius: 16px;
-  background: #fff;
-  color: #4338ca;
-  border: 1px solid rgba(167, 139, 250, 0.42);
-  font-size: 14px;
+  background:
+    radial-gradient(circle at 26% 20%, rgba(255, 255, 255, 0.62), transparent 24%),
+    linear-gradient(135deg, #7c3aed 0%, #c026d3 52%, #ec4899 100%);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.42);
+  font-size: 22px;
   font-weight: 800;
+  box-shadow: 0 12px 26px rgba(168, 85, 247, 0.3);
+  flex: 0 0 48px;
+}
+
+.polish-button span {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
   white-space: nowrap;
-  box-shadow: 0 8px 24px rgba(99, 102, 241, 0.1);
+}
+
+.polish-button i {
+  filter: drop-shadow(0 1px 3px rgba(88, 28, 135, 0.28));
 }
 
 .polish-button:disabled {
@@ -2601,10 +2617,14 @@ a {
   }
 
   .send-button,
-  .polish-button,
   .tool-button {
     min-width: 72px;
     padding-inline: 12px;
+  }
+
+  .polish-button {
+    min-width: 48px;
+    padding-inline: 0;
   }
 
   .prompt-box {
