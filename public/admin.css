@@ -290,6 +290,40 @@ th {
   white-space: nowrap;
 }
 
+.sort-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  width: auto;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.sort-button span {
+  color: #98a2b3;
+  font-size: 11px;
+  line-height: 1;
+}
+
+.sort-button.active {
+  color: var(--ink);
+}
+
+.sort-button.active span {
+  color: var(--ink);
+}
+
+.sort-button:hover {
+  color: var(--ink);
+}
+
 .select-col {
   width: 42px;
   min-width: 42px;

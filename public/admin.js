@@ -10,6 +10,8 @@ const state = {
   records: [],
   recordFilters: { q: "", status: "all", public: "all" },
   userFilters: { q: "", role: "all", status: "all" },
+  recordSort: { key: "createdAt", dir: "desc" },
+  userSort: { key: "role", dir: "asc" },
   selectedRecords: new Set(),
   selectedUsers: new Set()
 };
@@ -164,9 +166,71 @@ function matchesSearch(values, query) {
   return values.some((value) => String(value || "").toLowerCase().includes(normalized));
 }
 
+function compareValues(left, right, dir = "asc") {
+  const direction = dir === "desc" ? -1 : 1;
+  const leftValue = left ?? "";
+  const rightValue = right ?? "";
+  let result;
+
+  if (typeof leftValue === "number" || typeof rightValue === "number") {
+    result = Number(leftValue || 0) - Number(rightValue || 0);
+  } else {
+    result = String(leftValue).localeCompare(String(rightValue), "zh-CN", {
+      numeric: true,
+      sensitivity: "base"
+    });
+  }
+
+  return result * direction;
+}
+
+function sortButton(label, key, sortState) {
+  const active = sortState.key === key;
+  const arrow = active ? (sortState.dir === "asc" ? "↑" : "↓") : "↕";
+  return `<button class="sort-button ${active ? "active" : ""}" type="button" data-sort="${escapeHtml(key)}" aria-label="按${escapeHtml(label)}排序">${escapeHtml(label)} <span>${arrow}</span></button>`;
+}
+
+function setSort(target, key) {
+  const sortState = target === "records" ? state.recordSort : state.userSort;
+  if (sortState.key === key) {
+    sortState.dir = sortState.dir === "asc" ? "desc" : "asc";
+  } else {
+    sortState.key = key;
+    sortState.dir = key === "createdAt" ? "desc" : "asc";
+  }
+  if (target === "records") renderRecords();
+  else renderUsers();
+}
+
+function recordSortValue(record, key) {
+  const values = {
+    user: record.userName || record.userEmail || record.userId || "",
+    prompt: record.prompt || "",
+    ip: record.ipAddress || record.userAgent || "",
+    public: record.isPublic ? 1 : 0,
+    status: record.status || "",
+    createdAt: record.createdAt ? new Date(record.createdAt).getTime() : 0
+  };
+  return values[key] ?? "";
+}
+
+function userSortValue(user, key) {
+  const roleRank = user.role === "admin" ? 0 : 1;
+  const statusRank = user.status === "active" ? 0 : 1;
+  const values = {
+    user: user.name || user.email || "",
+    role: roleRank,
+    status: statusRank,
+    credits: Number(user.credits || 0),
+    usedCredits: Number(user.usedCredits || 0),
+    createdAt: user.createdAt ? new Date(user.createdAt).getTime() : 0
+  };
+  return values[key] ?? "";
+}
+
 function filteredRecords() {
   const filters = state.recordFilters;
-  return state.records.filter((record) => {
+  const records = state.records.filter((record) => {
     if (filters.status !== "all" && record.status !== filters.status) return false;
     if (filters.public !== "all" && String(Number(Boolean(record.isPublic))) !== filters.public) return false;
     return matchesSearch([
@@ -180,14 +244,30 @@ function filteredRecords() {
       record.errorMessage
     ], filters.q);
   });
+  return records.sort((left, right) => {
+    const primary = compareValues(
+      recordSortValue(left, state.recordSort.key),
+      recordSortValue(right, state.recordSort.key),
+      state.recordSort.dir
+    );
+    return primary || compareValues(recordSortValue(left, "createdAt"), recordSortValue(right, "createdAt"), "desc");
+  });
 }
 
 function filteredUsers() {
   const filters = state.userFilters;
-  return state.users.filter((user) => {
+  const users = state.users.filter((user) => {
     if (filters.role !== "all" && user.role !== filters.role) return false;
     if (filters.status !== "all" && user.status !== filters.status) return false;
     return matchesSearch([user.name, user.email, user.role, user.status, user.id], filters.q);
+  });
+  return users.sort((left, right) => {
+    const primary = compareValues(
+      userSortValue(left, state.userSort.key),
+      userSortValue(right, state.userSort.key),
+      state.userSort.dir
+    );
+    return primary || compareValues(userSortValue(left, "createdAt"), userSortValue(right, "createdAt"), "desc");
   });
 }
 
@@ -264,12 +344,12 @@ function renderRecords(focusTarget = "") {
               <tr>
                 <th class="select-col"><input id="selectAllRecords" type="checkbox" ${allVisibleSelected ? "checked" : ""} aria-label="选择当前筛选的全部记录"></th>
                 <th>图片</th>
-                <th>用户</th>
-                <th>提示词</th>
-                <th>IP / UA</th>
-                <th>公开</th>
-                <th>状态</th>
-                <th>时间</th>
+                <th>${sortButton("用户", "user", state.recordSort)}</th>
+                <th>${sortButton("提示词", "prompt", state.recordSort)}</th>
+                <th>${sortButton("IP / UA", "ip", state.recordSort)}</th>
+                <th>${sortButton("公开", "public", state.recordSort)}</th>
+                <th>${sortButton("状态", "status", state.recordSort)}</th>
+                <th>${sortButton("时间", "createdAt", state.recordSort)}</th>
                 <th>操作</th>
               </tr>
             </thead>
@@ -307,6 +387,9 @@ function renderRecords(focusTarget = "") {
   $("#recordPublicFilter").addEventListener("change", (event) => {
     state.recordFilters.public = event.target.value;
     renderRecords();
+  });
+  $$("[data-sort]", $("#panel")).forEach((button) => {
+    button.addEventListener("click", () => setSort("records", button.dataset.sort));
   });
   $("#selectAllRecords")?.addEventListener("change", (event) => {
     setAllVisibleRecords(records, event.target.checked);
@@ -374,12 +457,12 @@ function renderUsers(focusTarget = "") {
           <thead>
             <tr>
               <th class="select-col"><input id="selectAllUsers" type="checkbox" ${allVisibleSelected ? "checked" : ""} aria-label="选择当前筛选的全部用户"></th>
-              <th>用户</th>
-              <th>角色</th>
-              <th>状态</th>
-              <th>积分</th>
-              <th>使用积分量</th>
-              <th>注册时间</th>
+              <th>${sortButton("用户", "user", state.userSort)}</th>
+              <th>${sortButton("角色", "role", state.userSort)}</th>
+              <th>${sortButton("状态", "status", state.userSort)}</th>
+              <th>${sortButton("积分", "credits", state.userSort)}</th>
+              <th>${sortButton("使用积分量", "usedCredits", state.userSort)}</th>
+              <th>${sortButton("注册时间", "createdAt", state.userSort)}</th>
               <th></th>
             </tr>
           </thead>
@@ -427,6 +510,9 @@ function renderUsers(focusTarget = "") {
   $("#userStatusFilter").addEventListener("change", (event) => {
     state.userFilters.status = event.target.value;
     renderUsers();
+  });
+  $$("[data-sort]", $("#panel")).forEach((button) => {
+    button.addEventListener("click", () => setSort("users", button.dataset.sort));
   });
   $("#selectAllUsers")?.addEventListener("change", (event) => {
     setAllVisibleUsers(users, event.target.checked);
