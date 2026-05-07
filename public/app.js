@@ -618,22 +618,50 @@ function renderRecentCreations() {
     const visual = item.image
       ? `<img src="${escapeHtml(promptImageUrl(item.image))}" loading="lazy" decoding="async" fetchpriority="low" alt="${escapeHtml(truncate(item.prompt, 80))}">`
       : `<div class="recent-gradient" style="--art-bg:${item.colors}"><i class="${item.icon}"></i></div>`;
+    const imageUrl = item.image ? promptImageUrl(item.image) : "";
     return `
-      <button class="recent-tile ${item.heightClass}" type="button" data-recent-id="${escapeHtml(item.id)}">
-        <div class="recent-visual">${visual}</div>
-        <div class="recent-caption">
-          <strong>${escapeHtml(item.title || truncate(item.prompt, 34))}</strong>
-          <span>${escapeHtml(truncate(item.prompt, 76))}</span>
+      <article class="recent-tile work-card" data-recent-id="${escapeHtml(item.id)}">
+        <button class="work-image-button" type="button" data-recent-view="${escapeHtml(item.id)}" aria-label="${escapeHtml(truncate(item.prompt, 80))}">
+          ${visual}
+        </button>
+        <div class="work-body">
+          <p>${escapeHtml(truncate(item.prompt, 92))}</p>
+          <div class="work-footer">
+            <span>${escapeHtml(item.time ? formatDate(item.time) : "")}${item.isPublic ? ` · ${text("publishToSquare")}` : ""}</span>
+            <div class="work-actions">
+              ${imageUrl ? `<a href="${escapeHtml(imageUrl)}" download="${escapeHtml(item.id)}.png"><i class="ri-download-line"></i>${text("download")}</a>` : ""}
+              <button type="button" data-recent-retry="${escapeHtml(item.id)}"><i class="ri-refresh-line"></i>${text("retry")}</button>
+              ${imageUrl ? `<button type="button" data-recent-editor="${escapeHtml(item.id)}"><i class="ri-magic-line"></i>${text("openEditor")}</button>` : ""}
+            </div>
+          </div>
         </div>
-      </button>
+      </article>
     `;
   }).join("");
 
-  $$("[data-recent-id]", elements.recentMasonry).forEach((button) => {
+  $$("[data-recent-view]", elements.recentMasonry).forEach((button) => {
     button.addEventListener("click", () => {
-      const id = button.dataset.recentId;
+      const id = button.dataset.recentView;
       const item = displayItems.find((entry) => String(entry.id) === id);
       if (item) openRecentPreview(item);
+    });
+  });
+  $$("[data-recent-retry]", elements.recentMasonry).forEach((button) => {
+    button.addEventListener("click", () => {
+      const item = displayItems.find((entry) => String(entry.id) === button.dataset.recentRetry);
+      if (!item) return;
+      state.forceHero = true;
+      state.showGenerationView = false;
+      state.draftPrompt = item.prompt;
+      setView("home");
+      syncComposers();
+      setTimeout(() => submitGeneration($(".composer", elements.heroComposerMount)), 80);
+    });
+  });
+  $$("[data-recent-editor]", elements.recentMasonry).forEach((button) => {
+    button.addEventListener("click", () => {
+      const item = displayItems.find((entry) => String(entry.id) === button.dataset.recentEditor);
+      if (item?.image) openImageEditor(promptImageUrl(item.image), item.prompt);
     });
   });
 }
