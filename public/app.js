@@ -598,12 +598,12 @@ function shouldShowHero() {
   return state.forceHero || !state.showGenerationView;
 }
 
-function showHomeHero({ focusPrompt = false, smooth = false } = {}) {
+function showHomeHero({ focusPrompt = false, smooth = false, scrollTop = 100 } = {}) {
   state.view = "home";
   state.forceHero = true;
   state.showGenerationView = false;
   setView("home");
-  window.scrollTo({ top: 0, behavior: smooth ? "smooth" : "auto" });
+  window.scrollTo({ top: scrollTop, behavior: smooth ? "smooth" : "auto" });
   restartHeroVideo();
   if (focusPrompt) {
     setTimeout(() => $(".prompt-box", elements.heroComposerMount)?.focus(), 120);
