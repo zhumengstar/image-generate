@@ -1150,7 +1150,7 @@ function promptCardHtml(prompt) {
     ? `<img src="${escapeHtml(promptImageUrl(prompt.image))}" loading="lazy" decoding="async" fetchpriority="low" alt="${escapeHtml(title)}" onerror="this.parentElement.classList.add('image-error')">`
     : `<i class="${prompt.icon || "ri-image-line"}"></i>`;
   return `
-    <article class="prompt-card" style="--art-bg:${prompt.colors || "linear-gradient(135deg,#64748b,#cbd5e1)"}">
+    <article class="prompt-card" data-preview-prompt="${escapeHtml(prompt.id)}" style="--art-bg:${prompt.colors || "linear-gradient(135deg,#64748b,#cbd5e1)"}">
       <div class="card-art">${art}<em><i class="ri-user-line"></i>${escapeHtml(prompt.author || "@open")}</em></div>
       <h3>${escapeHtml(title)}</h3>
       <div class="prompt-tags">${tagsHtml}</div>
@@ -1164,6 +1164,21 @@ function promptCardHtml(prompt) {
 }
 
 function bindPromptCards(root) {
+  $$("[data-preview-prompt]", root).forEach((card) => {
+    card.addEventListener("click", (event) => {
+      if (event.target.closest("button")) return;
+      const prompt = getPromptSource().find((item) => item.id === Number(card.dataset.previewPrompt));
+      if (!prompt) return;
+      openRecentPreview({
+        id: `prompt_${prompt.id}`,
+        prompt: prompt.prompt,
+        title: prompt.title,
+        image: prompt.image ? promptImageUrl(prompt.image) : "",
+        icon: prompt.icon || "ri-image-line",
+        colors: prompt.colors
+      });
+    });
+  });
   $$("[data-copy-prompt]", root).forEach((button) => {
     button.addEventListener("click", async () => {
       const prompt = getPromptSource().find((item) => item.id === Number(button.dataset.copyPrompt));
