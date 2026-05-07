@@ -7,6 +7,7 @@ const state = {
   forceHero: false,
   history: [],
   generating: false,
+  polishing: false,
   funIndex: 0,
   funTimer: null,
   draftPrompt: "",
@@ -69,6 +70,8 @@ const i18n = {
     viewMore: "查看更多",
     placeholder: "描述你想创作的图片...",
     create: "生成",
+    polish: "AI润色",
+    polishing: "润色中",
     generating: "生成中...",
     reference: "参考图",
     options: "参数",
@@ -187,6 +190,8 @@ const i18n = {
     viewMore: "View more",
     placeholder: "Describe the image you want to create...",
     create: "Create",
+    polish: "AI polish",
+    polishing: "Polishing",
     generating: "Creating...",
     reference: "Reference",
     options: "Options",
@@ -688,6 +693,7 @@ function createComposer(sticky) {
   const referenceRow = $(".reference-row", form);
   const optionsToggle = $(".options-toggle", form);
   const publicInput = $(".public-input", form);
+  const polishButton = $(".polish-button", form);
   const advanced = $(".advanced-options", form);
 
   form.dataset.sticky = sticky ? "1" : "0";
@@ -721,6 +727,7 @@ function createComposer(sticky) {
     state.publishToSquare = publicInput.checked;
     syncComposers(form);
   });
+  polishButton.addEventListener("click", () => polishPrompt(form));
   $$(".advanced-options select", form).forEach((select) => {
     select.addEventListener("change", () => {
       state.generationOptions = getComposerOptions(form);
@@ -780,6 +787,11 @@ function syncComposers(sourceForm) {
     updateCustomSizeVisibility(form);
     $(".model-label", form).textContent = "GPT-IMAGE-2";
     $(".send-button", form).disabled = state.generating || !state.settings?.hasApiKey;
+    const polishButton = $(".polish-button", form);
+    if (polishButton) {
+      polishButton.disabled = state.generating || state.polishing;
+      $("span", polishButton).textContent = state.polishing ? text("polishing") : text("polish");
+    }
   });
 }
 
@@ -887,6 +899,39 @@ async function submitGeneration(form) {
     stopFunMessages();
     renderAll();
     scrollToBottom();
+  }
+}
+
+async function polishPrompt(form) {
+  const textarea = $(".prompt-box", form);
+  const prompt = textarea.value.trim();
+  if (!prompt || state.polishing || state.generating) return;
+  if (!state.user) {
+    state.draftPrompt = prompt;
+    openAuthModal("login");
+    return;
+  }
+
+  state.polishing = true;
+  syncComposers(form);
+  try {
+    const data = await api("/api/prompts/polish", {
+      method: "POST",
+      body: JSON.stringify({ prompt })
+    });
+    const polished = String(data.prompt || "").trim();
+    if (!polished) throw new Error("Empty polished prompt");
+    state.draftPrompt = polished;
+    syncComposers();
+    const target = $(".prompt-box", form);
+    target.focus();
+    target.setSelectionRange(target.value.length, target.value.length);
+    showToast(state.lang === "zh" ? "AI润色完成" : "Prompt polished", "ri-sparkling-2-line");
+  } catch (error) {
+    showToast(error.message, "ri-error-warning-line");
+  } finally {
+    state.polishing = false;
+    syncComposers();
   }
 }
 

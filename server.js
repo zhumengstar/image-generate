@@ -39,6 +39,7 @@ const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 7;
 const MAX_BODY_BYTES = 16 * 1024 * 1024;
 const DEFAULT_MODEL = "GPT-IMAGE-2";
 const CHECKIN_CREDIT = Number.parseInt(process.env.CHECKIN_CREDIT || "1", 10) || 1;
+const PROMPT_POLISH_MODEL = process.env.PROMPT_POLISH_MODEL || "gpt-5.5";
 
 const generationWindows = new Map();
 
@@ -181,6 +182,18 @@ function getOpenAIEditEndpoint(settings = {}) {
   if (cleanBase.endsWith("/images/generations")) return cleanBase.replace(/\/images\/generations$/, "/images/edits");
   if (cleanBase.endsWith("/v1")) return `${cleanBase}/images/edits`;
   return `${cleanBase}/v1/images/edits`;
+}
+
+function getPromptPolishBaseUrl() {
+  return String(process.env.PROMPT_POLISH_BASE_URL || "").trim().replace(/\/+$/, "");
+}
+
+function getPromptPolishEndpoint() {
+  const cleanBase = getPromptPolishBaseUrl();
+  if (!cleanBase) return "";
+  if (cleanBase.endsWith("/chat/completions")) return cleanBase;
+  if (cleanBase.endsWith("/v1")) return `${cleanBase}/chat/completions`;
+  return `${cleanBase}/v1/chat/completions`;
 }
 
 function publicSettings(settings) {
@@ -372,6 +385,76 @@ async function callOpenAIImages(settings, payload) {
   }
 
   return data;
+}
+
+function extractAssistantText(data) {
+  const choiceText = data?.choices?.[0]?.message?.content;
+  if (typeof choiceText === "string") return choiceText;
+  if (Array.isArray(choiceText)) {
+    return choiceText
+      .map((part) => typeof part === "string" ? part : part?.text || part?.content || "")
+      .join("\n");
+  }
+  if (typeof data?.output_text === "string") return data.output_text;
+  return "";
+}
+
+function cleanPolishedPrompt(value) {
+  return String(value || "")
+    .replace(/^```(?:\w+)?/i, "")
+    .replace(/```$/i, "")
+    .replace(/^\s*(?:prompt|润色后提示词)\s*[:：]\s*/i, "")
+    .trim()
+    .slice(0, 2000);
+}
+
+async function polishImagePrompt(prompt) {
+  const apiKey = String(process.env.PROMPT_POLISH_API_KEY || "").trim();
+  const endpoint = getPromptPolishEndpoint();
+  if (!apiKey || !endpoint) return prompt;
+
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      model: PROMPT_POLISH_MODEL,
+      temperature: 0.4,
+      messages: [
+        {
+          role: "system",
+          content: [
+            "You polish user input into a high-quality prompt for an AI image generation model.",
+            "Preserve the user's core subject, intent, style requests, names, and any exact text they want in the image.",
+            "Add helpful visual detail such as composition, lighting, materials, mood, camera angle, and rendering style.",
+            "Do not add explanations, markdown, quotes, alternatives, safety commentary, or prefixes.",
+            "Return only the final image prompt, preferably in English unless the user specifically needs Chinese text preserved."
+          ].join(" ")
+        },
+        {
+          role: "user",
+          content: prompt
+        }
+      ]
+    })
+  });
+
+  const text = await response.text();
+  let data;
+  try {
+    data = text ? JSON.parse(text) : {};
+  } catch {
+    data = { raw: text };
+  }
+
+  if (!response.ok) {
+    const message = data?.error?.message || "Prompt polish request failed";
+    throw httpError(message, response.status, data);
+  }
+
+  return cleanPolishedPrompt(extractAssistantText(data)) || prompt;
 }
 
 async function callOpenAIResponses(settings, payload) {
@@ -682,6 +765,18 @@ async function routeApi(req, res, url) {
 
   if (req.method === "GET" && url.pathname === "/api/settings") {
     return sendJson(res, 200, publicSettings(await store.getSettings()));
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/prompts/polish") {
+    const current = await getCurrentUser(req);
+    ensureAuthenticated(current);
+    const body = await readJsonBody(req);
+    const prompt = cleanPrompt(body.prompt);
+    if (!getPromptPolishEndpoint() || !String(process.env.PROMPT_POLISH_API_KEY || "").trim()) {
+      throw httpError("Prompt polish API is not configured", 400);
+    }
+    const polishedPrompt = await polishImagePrompt(prompt);
+    return sendJson(res, 200, { prompt: polishedPrompt });
   }
 
   if (req.method === "GET" && url.pathname === "/api/stats/today") {
