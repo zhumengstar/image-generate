@@ -1633,12 +1633,26 @@ a {
   padding: 12px;
 }
 
-.work-body p {
+.work-body p,
+.work-text-button {
   min-height: 40px;
   margin: 0;
   color: #101828;
   font-size: 13px;
   line-height: 1.55;
+}
+
+.work-text-button {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  padding: 0;
+  cursor: pointer;
+}
+
+.work-text-button:hover {
+  color: #4f46e5;
 }
 
 .work-body span {

@@ -626,7 +626,7 @@ function renderRecentCreations() {
           ${visual}
         </button>
         <div class="work-body">
-          <p>${escapeHtml(truncate(item.prompt, 92))}</p>
+          <button class="work-text-button" type="button" data-recent-view="${escapeHtml(item.id)}">${escapeHtml(truncate(item.prompt, 92))}</button>
           <div class="work-footer">
             <span>${escapeHtml(item.time ? formatDate(item.time) : "")}${item.isPublic ? ` · ${text("publishToSquare")}` : ""}</span>
             <div class="work-actions">
@@ -1774,7 +1774,7 @@ async function loadMyWorks(forceReload = false) {
         <img src="${escapeHtml(item.images[0])}" loading="lazy" decoding="async" alt="${escapeHtml(truncate(item.prompt, 80))}">
       </button>
       <div class="work-body">
-        <p>${escapeHtml(truncate(item.prompt, 92))}</p>
+        <button class="work-text-button" type="button" data-work-view="${escapeHtml(item.id)}">${escapeHtml(truncate(item.prompt, 92))}</button>
         <div class="work-footer">
           <span>${escapeHtml(formatDate(item.time))}${item.isPublic ? ` · ${text("publishToSquare")}` : ""}</span>
           <div class="work-actions">
