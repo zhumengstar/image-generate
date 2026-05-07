@@ -82,6 +82,7 @@ const i18n = {
     polish: "AI润色",
     polishing: "润色中",
     generating: "生成中...",
+    editing: "编辑中...",
     reference: "参考图",
     options: "参数",
     size: "尺寸",
@@ -203,6 +204,7 @@ const i18n = {
     polish: "AI polish",
     polishing: "Polishing",
     generating: "Creating...",
+    editing: "Editing...",
     reference: "Reference",
     options: "Options",
     size: "Size",
@@ -1500,7 +1502,9 @@ async function submitImageEdit(event) {
   }
 
   const button = $("button[type='submit']", elements.editorPromptForm);
+  const buttonLabel = $("span", button);
   button.disabled = true;
+  if (buttonLabel) buttonLabel.textContent = text("editing");
   state.editor.prompt = prompt;
   try {
     const originalData = state.editor.imageData || await imageReferenceForEdit(state.editor.imageUrl);
@@ -1537,6 +1541,7 @@ async function submitImageEdit(event) {
     else showToast(error.message, "ri-error-warning-line");
   } finally {
     button.disabled = false;
+    if (buttonLabel) buttonLabel.textContent = text("editImage");
   }
 }
 
