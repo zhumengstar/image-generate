@@ -2015,8 +2015,8 @@ async function deleteWork(id) {
   const confirmed = await confirmAction({
     title: state.lang === "zh" ? "删除作品" : "Delete work",
     message: state.lang === "zh"
-      ? "确定删除这张作品吗？后台管理中的生图记录会保留。"
-      : "Delete this work? Admin generation records will be kept.",
+      ? "确定删除这张作品吗？"
+      : "Delete this work?",
     confirmText: state.lang === "zh" ? "删除" : "Delete",
     cancelText: state.lang === "zh" ? "取消" : "Cancel"
   });
