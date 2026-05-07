@@ -2283,11 +2283,12 @@ function bindGlobalEvents() {
     state.showGenerationView = false;
     setView("home");
   });
-  $("[data-editor-create]", elements.editorView).addEventListener("click", () => {
+  $$("[data-editor-create]", elements.editorView).forEach((button) => button.addEventListener("click", () => {
     state.forceHero = true;
     state.showGenerationView = false;
     setView("home");
-  });
+    setTimeout(() => $(".prompt-box", elements.heroComposerMount)?.focus(), 120);
+  }));
   $$("[data-editor-tool]", elements.editorView).forEach((button) => {
     button.addEventListener("click", () => {
       state.editor.tool = button.dataset.editorTool;
