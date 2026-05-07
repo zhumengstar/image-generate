@@ -31,6 +31,7 @@ const state = {
   promptItems: [],
   promptVisible: 20,
   promptLoading: true,
+  restoreWorksOnViewerClose: false,
   editor: {
     imageUrl: "",
     imageData: "",
@@ -1688,9 +1689,12 @@ function onModalBackdrop(event) {
 }
 
 function closeModal() {
+  const shouldRestoreWorks = state.restoreWorksOnViewerClose;
+  state.restoreWorksOnViewerClose = false;
   elements.modalLayer.classList.add("hidden");
   elements.modalLayer.innerHTML = "";
   elements.modalLayer.removeEventListener("click", onModalBackdrop);
+  if (shouldRestoreWorks) setTimeout(openMyWorksModal, 0);
 }
 
 function confirmAction({ title, message, confirmText, cancelText }) {
@@ -1783,6 +1787,7 @@ async function loadMyWorks(forceReload = false) {
     button.addEventListener("click", () => {
       const item = state.history.find((entry) => String(entry.id) === button.dataset.workRetry);
       if (!item) return;
+      state.restoreWorksOnViewerClose = false;
       closeModal();
       state.forceHero = true;
       state.draftPrompt = item.prompt;
@@ -1795,6 +1800,7 @@ async function loadMyWorks(forceReload = false) {
     button.addEventListener("click", () => {
       const item = state.history.find((entry) => String(entry.id) === button.dataset.workEditor);
       if (!item?.images?.[0]) return;
+      state.restoreWorksOnViewerClose = false;
       closeModal();
       openImageEditor(item.images[0], item.prompt);
     });
@@ -1802,7 +1808,7 @@ async function loadMyWorks(forceReload = false) {
   $$("[data-work-view]", grid).forEach((button) => {
     button.addEventListener("click", () => {
       const item = state.history.find((entry) => String(entry.id) === button.dataset.workView);
-      if (item?.images?.[0]) openImageViewer(item.images[0], item.prompt, item.id);
+      if (item?.images?.[0]) openImageViewer(item.images[0], item.prompt, item.id, { restoreWorks: true });
     });
   });
   $$("[data-work-delete]", grid).forEach((button) => {
@@ -1835,8 +1841,9 @@ async function deleteWork(id) {
   }
 }
 
-function openImageViewer(imageUrl, prompt = "", id = "image") {
+function openImageViewer(imageUrl, prompt = "", id = "image", options = {}) {
   let zoom = 1;
+  state.restoreWorksOnViewerClose = Boolean(options.restoreWorks);
   const clampZoom = (value) => Math.min(4, Math.max(0.35, value));
   const fileName = `${String(id || "image").replace(/[^\w.-]+/g, "-")}.png`;
   openModal(`
