@@ -230,8 +230,7 @@ a {
 .hero {
   max-width: 1200px;
   margin: 0 auto;
-  height: calc(100vh - 78px);
-  min-height: 760px;
+  min-height: calc(100vh - 82px);
   padding: 290px clamp(16px, 4vw, 32px) 64px;
   display: flex;
   flex-direction: column;
@@ -239,7 +238,6 @@ a {
   text-align: center;
   gap: 32px;
   position: relative;
-  overflow: hidden;
 }
 
 .hero > *:not(.hero-video-layer) {
@@ -2590,10 +2588,7 @@ a {
   }
 
   .hero {
-    height: auto;
-    min-height: calc(100vh - 78px);
     padding-top: 160px;
-    overflow: visible;
   }
 
   .daily-metric {
