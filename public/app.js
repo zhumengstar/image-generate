@@ -54,6 +54,7 @@ const i18n = {
   zh: {
     brand: "Image Studio",
     promptLibrary: "提示词库",
+    imageCreate: "图片生成",
     imageEditor: "图片编辑",
     contact: "联系管理员",
     admin: "后台",
@@ -174,6 +175,7 @@ const i18n = {
   en: {
     brand: "Image Studio",
     promptLibrary: "Prompts",
+    imageCreate: "Image Create",
     imageEditor: "Image Editor",
     contact: "Contact",
     admin: "Admin",
