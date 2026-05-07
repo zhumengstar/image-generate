@@ -948,7 +948,7 @@ function renderHistory() {
     const separator = date && date !== lastDate ? `<div class="date-separator">${date}</div>` : "";
     if (date) lastDate = date;
     const image = item.status === "done" && item.images[0]
-      ? `<img class="img-reveal" src="${item.images[0]}" alt="${escapeHtml(truncate(item.prompt, 80))}">`
+      ? `<button class="image-view-button" type="button" data-view-image="${escapeHtml(item.id)}" aria-label="${escapeHtml(truncate(item.prompt, 80))}"><img class="img-reveal" src="${escapeHtml(item.images[0])}" alt="${escapeHtml(truncate(item.prompt, 80))}"></button>`
       : item.status === "generating"
         ? `<div class="paint-drip"><span></span><span></span><span></span><span></span><span></span></div>`
         : `<i class="ri-image-line"></i>`;
@@ -999,6 +999,12 @@ function renderHistory() {
     button.addEventListener("click", () => {
       const item = state.history.find((entry) => String(entry.id) === button.dataset.editImage);
       if (item?.images?.[0]) openImageEditor(item.images[0], item.prompt);
+    });
+  });
+  $$("[data-view-image]", elements.historyList).forEach((button) => {
+    button.addEventListener("click", () => {
+      const item = state.history.find((entry) => String(entry.id) === button.dataset.viewImage);
+      if (item?.images?.[0]) openImageViewer(item.images[0], item.prompt, item.id);
     });
   });
 }
@@ -1611,7 +1617,9 @@ async function loadMyWorks(forceReload = false) {
   }
   grid.innerHTML = items.map((item) => `
     <article class="work-card" data-work-id="${escapeHtml(item.id)}">
-      <img src="${escapeHtml(item.images[0])}" loading="lazy" decoding="async" alt="${escapeHtml(truncate(item.prompt, 80))}">
+      <button class="work-image-button" type="button" data-work-view="${escapeHtml(item.id)}" aria-label="${escapeHtml(truncate(item.prompt, 80))}">
+        <img src="${escapeHtml(item.images[0])}" loading="lazy" decoding="async" alt="${escapeHtml(truncate(item.prompt, 80))}">
+      </button>
       <div class="work-body">
         <p>${escapeHtml(truncate(item.prompt, 92))}</p>
         <span>${escapeHtml(formatDate(item.time))}${item.isPublic ? ` · ${text("publishToSquare")}` : ""}</span>
@@ -1643,6 +1651,54 @@ async function loadMyWorks(forceReload = false) {
       openImageEditor(item.images[0], item.prompt);
     });
   });
+  $$("[data-work-view]", grid).forEach((button) => {
+    button.addEventListener("click", () => {
+      const item = state.history.find((entry) => String(entry.id) === button.dataset.workView);
+      if (item?.images?.[0]) openImageViewer(item.images[0], item.prompt, item.id);
+    });
+  });
+}
+
+function openImageViewer(imageUrl, prompt = "", id = "image") {
+  let zoom = 1;
+  const clampZoom = (value) => Math.min(4, Math.max(0.35, value));
+  const fileName = `${String(id || "image").replace(/[^\w.-]+/g, "-")}.png`;
+  openModal(`
+    <section class="modal image-viewer-modal" role="dialog" aria-modal="true">
+      <button class="close-modal" type="button"><i class="ri-close-line"></i></button>
+      <div class="image-viewer-toolbar">
+        <button type="button" data-viewer-zoom-out title="缩小" aria-label="缩小"><i class="ri-subtract-line"></i></button>
+        <span data-viewer-zoom-label>100%</span>
+        <button type="button" data-viewer-zoom-in title="放大" aria-label="放大"><i class="ri-add-line"></i></button>
+        <button type="button" data-viewer-reset title="复位" aria-label="复位"><i class="ri-fullscreen-exit-line"></i></button>
+        <a href="${escapeHtml(imageUrl)}" download="${escapeHtml(fileName)}" title="${text("download")}" aria-label="${text("download")}"><i class="ri-download-line"></i></a>
+      </div>
+      <div class="image-viewer-stage">
+        <img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(truncate(prompt, 120))}" data-viewer-image draggable="false">
+      </div>
+    </section>
+  `);
+
+  const stage = $(".image-viewer-stage", elements.modalLayer);
+  const image = $("[data-viewer-image]", elements.modalLayer);
+  const label = $("[data-viewer-zoom-label]", elements.modalLayer);
+  const applyZoom = () => {
+    image.style.width = `${Math.round(zoom * 100)}%`;
+    label.textContent = `${Math.round(zoom * 100)}%`;
+  };
+  const updateZoom = (nextZoom) => {
+    zoom = clampZoom(nextZoom);
+    applyZoom();
+  };
+
+  $("[data-viewer-zoom-out]", elements.modalLayer).addEventListener("click", () => updateZoom(zoom - 0.25));
+  $("[data-viewer-zoom-in]", elements.modalLayer).addEventListener("click", () => updateZoom(zoom + 0.25));
+  $("[data-viewer-reset]", elements.modalLayer).addEventListener("click", () => updateZoom(1));
+  stage.addEventListener("wheel", (event) => {
+    event.preventDefault();
+    updateZoom(zoom + (event.deltaY < 0 ? 0.12 : -0.12));
+  }, { passive: false });
+  applyZoom();
 }
 
 function openComplianceNotice() {
