@@ -32,6 +32,7 @@ const state = {
   promptVisible: 20,
   promptLoading: true,
   restoreWorksOnViewerClose: false,
+  restorePreviewOnViewerClose: null,
   editor: {
     imageUrl: "",
     imageData: "",
@@ -671,7 +672,7 @@ function openRecentPreview(item, options = {}) {
   state.restoreWorksOnViewerClose = Boolean(options.restoreWorks);
   const imageUrl = item.image ? promptImageUrl(item.image) : "";
   const visual = item.image
-    ? `<img class="preview-image" src="${escapeHtml(imageUrl)}" alt="${escapeHtml(truncate(item.prompt, 80))}">`
+    ? `<button class="preview-image-button" type="button" data-preview-image><img class="preview-image" src="${escapeHtml(imageUrl)}" alt="${escapeHtml(truncate(item.prompt, 80))}"></button>`
     : `<div class="preview-gradient" style="--art-bg:${item.colors}"><i class="${item.icon}"></i></div>`;
   openModal(`
     <section class="modal preview-modal">
@@ -689,6 +690,12 @@ function openRecentPreview(item, options = {}) {
       </div>
     </section>
   `);
+  $("[data-preview-image]", elements.modalLayer)?.addEventListener("click", () => {
+    openImageViewer(imageUrl, item.prompt, item.id, {
+      restorePreview: item,
+      restoreWorks: Boolean(options.restoreWorks)
+    });
+  });
   $("[data-preview-use]", elements.modalLayer).addEventListener("click", () => {
     state.draftPrompt = item.prompt;
     state.restoreWorksOnViewerClose = false;
@@ -1695,10 +1702,16 @@ function onModalBackdrop(event) {
 function closeModal() {
   const shouldRestoreWorks = state.restoreWorksOnViewerClose;
   state.restoreWorksOnViewerClose = false;
+  const previewToRestore = state.restorePreviewOnViewerClose;
+  state.restorePreviewOnViewerClose = null;
   elements.modalLayer.classList.add("hidden");
   elements.modalLayer.innerHTML = "";
   elements.modalLayer.removeEventListener("click", onModalBackdrop);
-  if (shouldRestoreWorks) setTimeout(openMyWorksModal, 0);
+  if (previewToRestore) {
+    setTimeout(() => openRecentPreview(previewToRestore, { restoreWorks: shouldRestoreWorks }), 0);
+  } else if (shouldRestoreWorks) {
+    setTimeout(openMyWorksModal, 0);
+  }
 }
 
 function confirmAction({ title, message, confirmText, cancelText }) {
@@ -1857,6 +1870,7 @@ async function deleteWork(id) {
 function openImageViewer(imageUrl, prompt = "", id = "image", options = {}) {
   let zoom = 1;
   state.restoreWorksOnViewerClose = Boolean(options.restoreWorks);
+  state.restorePreviewOnViewerClose = options.restorePreview || null;
   const clampZoom = (value) => Math.min(4, Math.max(0.35, value));
   const fileName = `${String(id || "image").replace(/[^\w.-]+/g, "-")}.png`;
   openModal(`
