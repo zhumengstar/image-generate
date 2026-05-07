@@ -41,6 +41,8 @@ const state = {
   editor: {
     imageUrl: "",
     imageData: "",
+    images: [],
+    activeImageIndex: 0,
     prompt: "",
     tool: "brush",
     color: "#7c3aed",
@@ -457,6 +459,7 @@ const elements = {
   editorUploadInput: $("#editorUploadInput"),
   editorBottomUploadInput: $("#editorBottomUploadInput"),
   editorImageFrame: $("#editorImageFrame"),
+  editorImageStrip: $("#editorImageStrip"),
   editorImageScaler: $("#editorImageScaler"),
   editorSourceImage: $("#editorSourceImage"),
   editorMaskCanvas: $("#editorMaskCanvas"),
@@ -1291,6 +1294,7 @@ function openImageEditor(imageUrl = "", prompt = "") {
 
 function renderEditor() {
   if (!elements.editorView) return;
+  const editorImages = state.editor.images || [];
   $$("[data-editor-tool]", elements.editorView).forEach((button) => {
     button.classList.toggle("active", button.dataset.editorTool === state.editor.tool);
   });
@@ -1298,20 +1302,93 @@ function renderEditor() {
     elements.editorPromptInput.value = state.editor.prompt || "";
   }
   elements.editorColorInput.value = state.editor.color;
-  elements.editorUploadCard.classList.toggle("hidden", Boolean(state.editor.imageUrl));
-  elements.editorImageFrame.classList.toggle("hidden", !state.editor.imageUrl);
+  elements.editorUploadCard.classList.toggle("hidden", Boolean(editorImages.length));
+  elements.editorImageFrame.classList.toggle("hidden", !editorImages.length);
   elements.editorZoomText.textContent = `${Math.round(state.editor.zoom * 100)}%`;
   elements.editorImageScaler.style.transform = `scale(${state.editor.zoom})`;
+  if (elements.editorImageStrip) {
+    elements.editorImageStrip.innerHTML = editorImages.map((image, index) => `
+      <button class="editor-image-thumb ${index === state.editor.activeImageIndex ? "active" : ""}" type="button" data-editor-image-index="${index}" aria-label="${escapeHtml(image.name || "编辑图片")}">
+        <img src="${escapeHtml(image.url)}" alt="${escapeHtml(image.name || "编辑图片")}">
+        <span class="editor-image-remove" data-editor-remove-image="${index}" aria-label="移除图片"><i class="ri-close-line"></i></span>
+      </button>
+    `).join("");
+    $$("[data-editor-image-index]", elements.editorImageStrip).forEach((button) => {
+      button.addEventListener("click", (event) => {
+        if (event.target.closest("[data-editor-remove-image]")) return;
+        selectEditorImage(Number(button.dataset.editorImageIndex));
+      });
+    });
+    $$("[data-editor-remove-image]", elements.editorImageStrip).forEach((button) => {
+      button.addEventListener("click", (event) => {
+        event.stopPropagation();
+        removeEditorImage(Number(button.dataset.editorRemoveImage));
+      });
+    });
+  }
   if (state.editor.imageUrl && elements.editorSourceImage.getAttribute("src") !== state.editor.imageUrl) {
     elements.editorSourceImage.src = state.editor.imageUrl;
   }
 }
 
-function setEditorImage(src, imageData = "") {
-  state.editor.imageUrl = src;
-  state.editor.imageData = imageData || (src.startsWith("data:") ? src : "");
+function syncActiveEditorImage() {
+  const image = state.editor.images[state.editor.activeImageIndex];
+  state.editor.imageUrl = image?.url || "";
+  state.editor.imageData = image?.data || "";
+}
+
+function resetEditorMarks() {
   state.editor.zoom = 1;
   state.editor.history = [];
+}
+
+function setEditorImage(src, imageData = "", name = "编辑图片") {
+  state.editor.images = [{
+    id: `edit_${Date.now()}_${Math.random().toString(36).slice(2)}`,
+    url: src,
+    data: imageData || (src.startsWith("data:") ? src : ""),
+    name
+  }];
+  state.editor.activeImageIndex = 0;
+  syncActiveEditorImage();
+  resetEditorMarks();
+  renderEditor();
+}
+
+function addEditorImages(images) {
+  const slots = Math.max(0, 3 - state.editor.images.length);
+  const nextImages = images.slice(0, slots).map((image) => ({
+    id: `edit_${Date.now()}_${Math.random().toString(36).slice(2)}`,
+    ...image
+  }));
+  if (!nextImages.length) {
+    showToast(state.lang === "zh" ? "最多上传 3 张图片" : "You can upload up to 3 images", "ri-image-line");
+    return;
+  }
+  state.editor.images.push(...nextImages);
+  if (!state.editor.imageUrl) state.editor.activeImageIndex = 0;
+  syncActiveEditorImage();
+  resetEditorMarks();
+  renderEditor();
+  if (images.length > nextImages.length) {
+    showToast(state.lang === "zh" ? "最多上传 3 张图片" : "You can upload up to 3 images", "ri-image-line");
+  }
+}
+
+function selectEditorImage(index) {
+  if (index < 0 || index >= state.editor.images.length || index === state.editor.activeImageIndex) return;
+  state.editor.activeImageIndex = index;
+  syncActiveEditorImage();
+  resetEditorMarks();
+  renderEditor();
+}
+
+function removeEditorImage(index) {
+  if (index < 0 || index >= state.editor.images.length) return;
+  state.editor.images.splice(index, 1);
+  state.editor.activeImageIndex = Math.min(state.editor.activeImageIndex, Math.max(0, state.editor.images.length - 1));
+  syncActiveEditorImage();
+  resetEditorMarks();
   renderEditor();
 }
 
@@ -1432,10 +1509,26 @@ function hexToRgba(hex, alpha) {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
-async function handleEditorUpload(file) {
-  if (!file) return;
-  const dataUrl = await blobToDataUrl(file);
-  setEditorImage(dataUrl, dataUrl);
+async function handleEditorUpload(files) {
+  const selectedFiles = [...(files || [])].filter((file) => file?.type?.startsWith("image/"));
+  if (!selectedFiles.length) return;
+  const slots = Math.max(0, 3 - state.editor.images.length);
+  if (!slots) {
+    showToast(state.lang === "zh" ? "最多上传 3 张图片" : "You can upload up to 3 images", "ri-image-line");
+    return;
+  }
+  const images = await Promise.all(selectedFiles.slice(0, slots).map(async (file) => {
+    const dataUrl = await blobToDataUrl(file);
+    return {
+      url: dataUrl,
+      data: dataUrl,
+      name: file.name
+    };
+  }));
+  addEditorImages(images);
+  if (selectedFiles.length > slots) {
+    showToast(state.lang === "zh" ? "最多上传 3 张图片" : "You can upload up to 3 images", "ri-image-line");
+  }
 }
 
 function blobToDataUrl(blob) {
@@ -2390,8 +2483,14 @@ function bindGlobalEvents() {
   elements.editorPromptInput.addEventListener("input", () => {
     state.editor.prompt = elements.editorPromptInput.value;
   });
-  elements.editorUploadInput.addEventListener("change", (event) => handleEditorUpload(event.target.files?.[0]));
-  elements.editorBottomUploadInput.addEventListener("change", (event) => handleEditorUpload(event.target.files?.[0]));
+  elements.editorUploadInput.addEventListener("change", (event) => {
+    handleEditorUpload(event.target.files);
+    event.target.value = "";
+  });
+  elements.editorBottomUploadInput.addEventListener("change", (event) => {
+    handleEditorUpload(event.target.files);
+    event.target.value = "";
+  });
   elements.editorSourceImage.addEventListener("load", resetEditorCanvas);
   elements.editorMaskCanvas.addEventListener("pointerdown", editorPointerDown);
   elements.editorMaskCanvas.addEventListener("pointermove", editorPointerMove);

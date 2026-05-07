@@ -2226,7 +2226,56 @@ a {
   max-width: min(76vw, 980px);
   max-height: calc(100vh - 280px);
   display: grid;
+  gap: 14px;
   place-items: center;
+}
+
+.editor-image-strip {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  max-width: min(76vw, 980px);
+  flex-wrap: wrap;
+}
+
+.editor-image-thumb {
+  position: relative;
+  width: 72px;
+  height: 72px;
+  padding: 0;
+  border: 2px solid rgba(255, 255, 255, 0.16);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: visible;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.22);
+}
+
+.editor-image-thumb.active {
+  border-color: #a78bfa;
+  box-shadow: 0 0 0 4px rgba(167, 139, 250, 0.18), 0 16px 36px rgba(0, 0, 0, 0.28);
+}
+
+.editor-image-thumb img {
+  width: 100%;
+  height: 100%;
+  border-radius: 14px;
+  object-fit: cover;
+}
+
+.editor-image-remove {
+  position: absolute;
+  top: -9px;
+  right: -9px;
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, #111827, #ef4444);
+  color: #fff;
+  font-size: 16px;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.3);
+  cursor: pointer;
 }
 
 .editor-image-scaler {

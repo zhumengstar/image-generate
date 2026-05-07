@@ -157,9 +157,10 @@
                 <i class="ri-image-add-line"></i>
                 <strong data-i18n="uploadEditImage">上传或从作品中选择图片</strong>
                 <span data-i18n="uploadEditHint">支持画笔、矩形选区和局部编辑描述</span>
-                <input id="editorUploadInput" type="file" accept="image/*">
+                <input id="editorUploadInput" type="file" accept="image/*" multiple>
               </label>
               <div id="editorImageFrame" class="editor-image-frame hidden">
+                <div id="editorImageStrip" class="editor-image-strip"></div>
                 <div id="editorImageScaler" class="editor-image-scaler">
                   <img id="editorSourceImage" alt="编辑图片">
                   <canvas id="editorMaskCanvas"></canvas>
@@ -175,7 +176,7 @@
             <form id="editorPromptForm" class="editor-prompt-bar">
               <label class="editor-attach">
                 <i class="ri-image-add-line"></i>
-                <input id="editorBottomUploadInput" type="file" accept="image/*">
+                <input id="editorBottomUploadInput" type="file" accept="image/*" multiple>
               </label>
               <i class="ri-sparkling-2-fill editor-prompt-icon"></i>
               <input id="editorPromptInput" placeholder="让背景池塘开满荷花">
