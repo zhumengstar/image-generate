@@ -475,7 +475,9 @@ a {
   padding: 9px 6px;
   font-size: 16px;
   line-height: 1.5;
-  overflow-y: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
 }
 
 .prompt-box::placeholder {

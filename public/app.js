@@ -804,7 +804,7 @@ function autoSizePromptBox(textarea) {
   const minHeight = 46;
   textarea.style.height = "auto";
   textarea.style.height = `${Math.max(minHeight, Math.min(maxHeight, textarea.scrollHeight))}px`;
-  textarea.style.overflowY = textarea.scrollHeight > maxHeight ? "auto" : "hidden";
+  textarea.style.overflowY = "auto";
 }
 
 function renderReferences(row) {
