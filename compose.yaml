@@ -1,0 +1,31 @@
+services:
+  image2creat:
+    build: .
+    image: image2creat:latest
+    container_name: image2creat
+    restart: unless-stopped
+    ports:
+      - "${PORT:-3000}:3000"
+    environment:
+      PORT: 3000
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-image2creat-change-me}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@example.com}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-change-this-password}
+      ADMIN_NAME: ${ADMIN_NAME:-Admin}
+      AI_API_BASE_URL: ${AI_API_BASE_URL:-}
+      AI_API_KEY: ${AI_API_KEY:-}
+      IMAGE_MODEL: ${IMAGE_MODEL:-GPT-IMAGE-2}
+      DEFAULT_CREDITS: ${DEFAULT_CREDITS:-10}
+      GENERATION_CREDIT_COST: ${GENERATION_CREDIT_COST:-1}
+      CHECKIN_CREDIT: ${CHECKIN_CREDIT:-1}
+      ALLOW_REGISTRATION: ${ALLOW_REGISTRATION:-true}
+      REQUIRE_APPROVAL: ${REQUIRE_APPROVAL:-false}
+      MAX_IMAGES_PER_REQUEST: ${MAX_IMAGES_PER_REQUEST:-1}
+    volumes:
+      - image2creat_mysql:/var/lib/mysql
+      - image2creat_data:/data
+
+volumes:
+  image2creat_mysql:
+  image2creat_data:
+

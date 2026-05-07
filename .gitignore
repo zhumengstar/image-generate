@@ -1,0 +1,12 @@
+node_modules/
+data/
+output/
+.deploy-stage/
+
+.env
+*.log
+*-deploy.zip
+
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
