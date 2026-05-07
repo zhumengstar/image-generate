@@ -466,8 +466,8 @@ a {
 .prompt-box {
   width: 100%;
   min-height: 46px;
-  max-height: 160px;
-  resize: none;
+  max-height: 132px;
+  resize: vertical;
   border: 0;
   outline: 0;
   background: transparent;
@@ -475,6 +475,7 @@ a {
   padding: 9px 6px;
   font-size: 16px;
   line-height: 1.5;
+  overflow-y: hidden;
 }
 
 .prompt-box::placeholder {

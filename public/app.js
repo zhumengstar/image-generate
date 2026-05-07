@@ -697,8 +697,10 @@ function createComposer(sticky) {
   const advanced = $(".advanced-options", form);
 
   form.dataset.sticky = sticky ? "1" : "0";
+  autoSizePromptBox(textarea);
   textarea.addEventListener("input", () => {
     state.draftPrompt = textarea.value;
+    autoSizePromptBox(textarea);
     syncComposers(form);
   });
   textarea.addEventListener("keydown", (event) => {
@@ -784,6 +786,7 @@ function syncComposers(sourceForm) {
       $(".format-input", form).value = state.generationOptions.outputFormat;
       $(".public-input", form).checked = state.publishToSquare;
     }
+    autoSizePromptBox($(".prompt-box", form));
     updateCustomSizeVisibility(form);
     $(".model-label", form).textContent = "GPT-IMAGE-2";
     $(".send-button", form).disabled = state.generating || !state.settings?.hasApiKey;
@@ -793,6 +796,15 @@ function syncComposers(sourceForm) {
       $("span", polishButton).textContent = state.polishing ? text("polishing") : text("polish");
     }
   });
+}
+
+function autoSizePromptBox(textarea) {
+  if (!textarea) return;
+  const maxHeight = 132;
+  const minHeight = 46;
+  textarea.style.height = "auto";
+  textarea.style.height = `${Math.max(minHeight, Math.min(maxHeight, textarea.scrollHeight))}px`;
+  textarea.style.overflowY = textarea.scrollHeight > maxHeight ? "auto" : "hidden";
 }
 
 function renderReferences(row) {
