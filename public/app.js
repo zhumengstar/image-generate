@@ -1273,6 +1273,7 @@ function openImageEditor(imageUrl = "", prompt = "") {
   state.editor.prompt = prompt || state.editor.prompt;
   setView("editor");
   if (imageUrl) setEditorImage(imageUrl);
+  window.scrollTo({ top: 0, behavior: "auto" });
   setTimeout(() => elements.editorPromptInput?.focus(), 80);
 }
 

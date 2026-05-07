@@ -2060,7 +2060,7 @@ a {
     radial-gradient(circle at 1px 1px, rgba(255, 255, 255, 0.18) 1px, transparent 0) 0 0 / 40px 40px,
     linear-gradient(135deg, #080711 0%, #130d28 45%, #331811 100%);
   color: #f8fafc;
-  padding: 22px clamp(14px, 3vw, 32px) 32px;
+  padding: 44px clamp(14px, 3vw, 32px) 32px;
 }
 
 .editor-stage {
