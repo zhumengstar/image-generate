@@ -595,6 +595,18 @@ function shouldShowHero() {
   return state.forceHero || !state.showGenerationView;
 }
 
+function showHomeHero({ focusPrompt = false, smooth = false } = {}) {
+  state.view = "home";
+  state.forceHero = true;
+  state.showGenerationView = false;
+  setView("home");
+  window.scrollTo({ top: 0, behavior: smooth ? "smooth" : "auto" });
+  restartHeroVideo();
+  if (focusPrompt) {
+    setTimeout(() => $(".prompt-box", elements.heroComposerMount)?.focus(), 120);
+  }
+}
+
 function renderAll() {
   applyI18n();
   updateNav();
@@ -2310,11 +2322,8 @@ async function bootstrap() {
   } catch (error) {
     showToast(error.message, "ri-error-warning-line");
   }
-  state.view = "home";
-  state.forceHero = true;
-  state.showGenerationView = false;
   renderAll();
-  window.scrollTo({ top: 0, behavior: "auto" });
+  showHomeHero();
   runWhenIdle(() => {
     loadStats();
     loadPublicGallery();
@@ -2328,15 +2337,10 @@ async function bootstrap() {
 
 function bindGlobalEvents() {
   const openImageCreate = () => {
-    state.forceHero = true;
-    state.showGenerationView = false;
-    setView("home");
-    window.scrollTo({ top: 0, behavior: "smooth" });
-    setTimeout(() => $(".prompt-box", elements.heroComposerMount)?.focus(), 120);
+    showHomeHero({ focusPrompt: true, smooth: true });
   };
   elements.brandBtn.addEventListener("click", () => {
     openImageCreate();
-    restartHeroVideo();
   });
   elements.promptLibraryBtn.addEventListener("click", () => {
     setView("library");
@@ -2368,10 +2372,7 @@ function bindGlobalEvents() {
     renderLibrary();
   });
   $$("[data-editor-create]", elements.editorView).forEach((button) => button.addEventListener("click", () => {
-    state.forceHero = true;
-    state.showGenerationView = false;
-    setView("home");
-    setTimeout(() => $(".prompt-box", elements.heroComposerMount)?.focus(), 120);
+    showHomeHero({ focusPrompt: true });
   }));
   $$("[data-editor-tool]", elements.editorView).forEach((button) => {
     button.addEventListener("click", () => {
