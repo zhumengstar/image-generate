@@ -430,7 +430,8 @@ async function polishImagePrompt(prompt) {
             "Preserve the user's core subject, intent, style requests, names, and any exact text they want in the image.",
             "Add helpful visual detail such as composition, lighting, materials, mood, camera angle, and rendering style.",
             "Do not add explanations, markdown, quotes, alternatives, safety commentary, or prefixes.",
-            "Return only the final image prompt, preferably in English unless the user specifically needs Chinese text preserved."
+            "Return only the final image prompt.",
+            "Use the same language as the user's input. If the input mixes languages, keep the same dominant language and preserve all quoted or exact text verbatim."
           ].join(" ")
         },
         {
