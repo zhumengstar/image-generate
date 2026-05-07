@@ -544,25 +544,56 @@ function renderUsers(focusTarget = "") {
 function renderSettings() {
   const settings = state.settings || {};
   $("#panel").innerHTML = `
-    <div class="grid">
-      <section class="card">
-        <h2>接口设置</h2>
-        <form id="settingsForm" class="form">
-          <label>OpenAI API Key<input id="apiKeyInput" type="password" placeholder="${escapeHtml(settings.apiKeyMask || "不修改则留空")}"></label>
-        <label>API 地址<input id="apiBaseUrlInput" value="${escapeHtml(settings.apiBaseUrl || "")}" placeholder="AI API base URL"></label>
-          <label>模型<input id="modelInput" value="${escapeHtml(settings.model || "GPT-IMAGE-2")}"></label>
-          <label>注册送积分<input id="defaultCreditsInput" type="number" min="0" value="${Number(settings.defaultCredits ?? 10)}"></label>
-          <label>每张图消耗积分<input id="generationCreditCostInput" type="number" min="0" value="${Number(settings.generationCreditCost ?? 1)}"></label>
-          <label>单次最大张数<input id="maxImagesInput" type="number" min="1" max="4" value="${Number(settings.maxImagesPerRequest ?? 1)}"></label>
-          <label><input id="allowRegistrationInput" type="checkbox" ${settings.allowRegistration ? "checked" : ""}> 开放注册</label>
-          <label><input id="requireApprovalInput" type="checkbox" ${settings.requireApproval ? "checked" : ""}> 新用户需要后台启用</label>
-          <button class="primary" type="submit">保存设置</button>
-          <button id="clearKeyBtn" class="secondary" type="button">清除 API Key</button>
+    <div class="settings-layout">
+      <section class="card settings-card">
+        <div class="settings-title">
+          <div>
+            <h2>接口设置</h2>
+            <p>配置图像生成接口、积分规则和注册策略。</p>
+          </div>
+          <span class="settings-badge">${settings.hasApiKey ? "已配置 Key" : "未配置 Key"}</span>
+        </div>
+        <form id="settingsForm" class="settings-form">
+          <div class="settings-group">
+            <h3>接口</h3>
+            <label>OpenAI API Key<input id="apiKeyInput" type="password" placeholder="${escapeHtml(settings.apiKeyMask || "不修改则留空")}"></label>
+            <label>API 地址<input id="apiBaseUrlInput" value="${escapeHtml(settings.apiBaseUrl || "")}" placeholder="https://api.example.com"></label>
+            <label>模型<input id="modelInput" value="${escapeHtml(settings.model || "GPT-IMAGE-2")}"></label>
+          </div>
+          <div class="settings-group compact-fields">
+            <h3>积分</h3>
+            <label>注册送积分<input id="defaultCreditsInput" type="number" min="0" value="${Number(settings.defaultCredits ?? 10)}"></label>
+            <label>每张图消耗积分<input id="generationCreditCostInput" type="number" min="0" value="${Number(settings.generationCreditCost ?? 1)}"></label>
+            <label>单次最大张数<input id="maxImagesInput" type="number" min="1" max="4" value="${Number(settings.maxImagesPerRequest ?? 1)}"></label>
+          </div>
+          <div class="settings-group">
+            <h3>账号</h3>
+            <label class="switch-row">
+              <input id="allowRegistrationInput" type="checkbox" ${settings.allowRegistration ? "checked" : ""}>
+              <span></span>
+              <strong>开放注册</strong>
+              <small>允许新用户自行注册账号。</small>
+            </label>
+            <label class="switch-row">
+              <input id="requireApprovalInput" type="checkbox" ${settings.requireApproval ? "checked" : ""}>
+              <span></span>
+              <strong>新用户需要后台启用</strong>
+              <small>注册后先停用，由管理员审核启用。</small>
+            </label>
+          </div>
+          <div class="settings-actions">
+            <button class="primary" type="submit">保存设置</button>
+            <button id="clearKeyBtn" class="secondary" type="button">清除 API Key</button>
+          </div>
         </form>
       </section>
-      <section class="card">
+      <section class="card settings-help">
         <h2>说明</h2>
-        <p class="muted">前台生图会按“每张图消耗积分”扣除积分；用户每天可在前台签到领取 1 积分。用户积分可在用户管理中直接设置，也可以用增减积分输入框做临时加减。</p>
+        <div class="help-list">
+          <p><strong>积分扣除</strong><span>前台生图会按“每张图消耗积分”扣除积分，失败会自动退回。</span></p>
+          <p><strong>每日签到</strong><span>用户每天可在前台签到领取 1 积分。</span></p>
+          <p><strong>用户积分</strong><span>管理员可在用户管理中直接调整用户当前积分。</span></p>
+        </div>
       </section>
     </div>
   `;
