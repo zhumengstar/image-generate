@@ -1335,11 +1335,14 @@ function syncActiveEditorImage() {
   const image = state.editor.images[state.editor.activeImageIndex];
   state.editor.imageUrl = image?.url || "";
   state.editor.imageData = image?.data || "";
+  state.editor.history = image?.history || [];
 }
 
-function resetEditorMarks() {
+function resetEditorInteraction() {
   state.editor.zoom = 1;
-  state.editor.history = [];
+  state.editor.pointerDown = false;
+  state.editor.startPoint = null;
+  state.editor.snapshot = null;
 }
 
 function setEditorImage(src, imageData = "", name = "编辑图片") {
@@ -1347,11 +1350,12 @@ function setEditorImage(src, imageData = "", name = "编辑图片") {
     id: `edit_${Date.now()}_${Math.random().toString(36).slice(2)}`,
     url: src,
     data: imageData || (src.startsWith("data:") ? src : ""),
-    name
+    name,
+    history: []
   }];
   state.editor.activeImageIndex = 0;
   syncActiveEditorImage();
-  resetEditorMarks();
+  resetEditorInteraction();
   renderEditor();
 }
 
@@ -1359,6 +1363,7 @@ function addEditorImages(images) {
   const slots = Math.max(0, 3 - state.editor.images.length);
   const nextImages = images.slice(0, slots).map((image) => ({
     id: `edit_${Date.now()}_${Math.random().toString(36).slice(2)}`,
+    history: [],
     ...image
   }));
   if (!nextImages.length) {
@@ -1368,7 +1373,6 @@ function addEditorImages(images) {
   state.editor.images.push(...nextImages);
   if (!state.editor.imageUrl) state.editor.activeImageIndex = 0;
   syncActiveEditorImage();
-  resetEditorMarks();
   renderEditor();
   if (images.length > nextImages.length) {
     showToast(state.lang === "zh" ? "最多上传 3 张图片" : "You can upload up to 3 images", "ri-image-line");
@@ -1379,7 +1383,7 @@ function selectEditorImage(index) {
   if (index < 0 || index >= state.editor.images.length || index === state.editor.activeImageIndex) return;
   state.editor.activeImageIndex = index;
   syncActiveEditorImage();
-  resetEditorMarks();
+  resetEditorInteraction();
   renderEditor();
 }
 
@@ -1388,7 +1392,7 @@ function removeEditorImage(index) {
   state.editor.images.splice(index, 1);
   state.editor.activeImageIndex = Math.min(state.editor.activeImageIndex, Math.max(0, state.editor.images.length - 1));
   syncActiveEditorImage();
-  resetEditorMarks();
+  resetEditorInteraction();
   renderEditor();
 }
 
@@ -1396,11 +1400,19 @@ function resetEditorCanvas() {
   const image = elements.editorSourceImage;
   const canvas = elements.editorMaskCanvas;
   if (!image?.naturalWidth || !canvas) return;
+  const activeImage = state.editor.images[state.editor.activeImageIndex];
   canvas.width = image.naturalWidth;
   canvas.height = image.naturalHeight;
   const ctx = canvas.getContext("2d");
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  state.editor.history = [canvas.toDataURL("image/png")];
+  if (activeImage?.history?.length) {
+    state.editor.history = activeImage.history;
+    restoreEditorHistory(activeImage.history[activeImage.history.length - 1]);
+    return;
+  }
+  const blank = canvas.toDataURL("image/png");
+  if (activeImage) activeImage.history = [blank];
+  state.editor.history = activeImage?.history || [blank];
 }
 
 function editorPoint(event) {
@@ -1414,8 +1426,12 @@ function editorPoint(event) {
 
 function pushEditorHistory() {
   const canvas = elements.editorMaskCanvas;
-  state.editor.history.push(canvas.toDataURL("image/png"));
-  if (state.editor.history.length > 20) state.editor.history.shift();
+  const activeImage = state.editor.images[state.editor.activeImageIndex];
+  if (!activeImage) return;
+  activeImage.history = activeImage.history || [];
+  activeImage.history.push(canvas.toDataURL("image/png"));
+  if (activeImage.history.length > 20) activeImage.history.shift();
+  state.editor.history = activeImage.history;
 }
 
 function restoreEditorHistory(dataUrl) {
@@ -1489,9 +1505,12 @@ function editorPointerUp() {
 }
 
 function undoEditorMark() {
-  if (state.editor.history.length <= 1) return;
-  state.editor.history.pop();
-  restoreEditorHistory(state.editor.history[state.editor.history.length - 1]);
+  const activeImage = state.editor.images[state.editor.activeImageIndex];
+  const history = activeImage?.history || [];
+  if (history.length <= 1) return;
+  history.pop();
+  state.editor.history = history;
+  restoreEditorHistory(history[history.length - 1]);
 }
 
 function zoomEditor(direction) {
