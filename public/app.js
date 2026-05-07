@@ -598,6 +598,7 @@ function recentFallbackItems() {
 function recentHistoryItems() {
   return state.history
     .filter((item) => item.images?.[0])
+    .sort((a, b) => new Date(b.time || 0) - new Date(a.time || 0))
     .map((item, index) => ({
       id: item.id,
       prompt: item.prompt,
