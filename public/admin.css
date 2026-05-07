@@ -180,6 +180,13 @@ textarea {
   color: var(--ink);
 }
 
+input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--dark);
+}
+
 textarea {
   min-height: 72px;
   resize: vertical;
@@ -241,6 +248,23 @@ textarea {
   white-space: nowrap;
 }
 
+.bulk-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  min-height: 40px;
+  margin: -2px 0 12px;
+  color: var(--text);
+  font-size: 13px;
+}
+
+.bulk-bar span {
+  margin-right: 4px;
+  color: var(--muted);
+  font-weight: 700;
+}
+
 table {
   width: 100%;
   border-collapse: collapse;
@@ -260,6 +284,13 @@ th {
   color: #667085;
   background: #f9fafb;
   font-size: 12px;
+}
+
+.select-col {
+  width: 42px;
+  min-width: 42px;
+  text-align: center;
+  vertical-align: middle;
 }
 
 tr:last-child td {

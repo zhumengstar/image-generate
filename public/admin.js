@@ -9,7 +9,9 @@ const state = {
   users: [],
   records: [],
   recordFilters: { q: "", status: "all", public: "all" },
-  userFilters: { q: "", role: "all", status: "all" }
+  userFilters: { q: "", role: "all", status: "all" },
+  selectedRecords: new Set(),
+  selectedUsers: new Set()
 };
 
 async function api(path, options = {}) {
@@ -162,8 +164,36 @@ function focusFilterInput(id) {
   input.setSelectionRange?.(end, end);
 }
 
+function pruneSelections() {
+  const recordIds = new Set(state.records.map((record) => record.id));
+  const userIds = new Set(state.users.map((user) => user.id));
+  [...state.selectedRecords].forEach((id) => {
+    if (!recordIds.has(id)) state.selectedRecords.delete(id);
+  });
+  [...state.selectedUsers].forEach((id) => {
+    if (!userIds.has(id) || id === state.user?.id) state.selectedUsers.delete(id);
+  });
+}
+
+function setAllVisibleRecords(records, checked) {
+  records.forEach((record) => {
+    if (checked) state.selectedRecords.add(record.id);
+    else state.selectedRecords.delete(record.id);
+  });
+}
+
+function setAllVisibleUsers(users, checked) {
+  users.forEach((user) => {
+    if (user.id === state.user?.id) return;
+    if (checked) state.selectedUsers.add(user.id);
+    else state.selectedUsers.delete(user.id);
+  });
+}
+
 function renderRecords(focusTarget = "") {
   const records = filteredRecords();
+  const selectedVisibleCount = records.filter((record) => state.selectedRecords.has(record.id)).length;
+  const allVisibleSelected = Boolean(records.length && selectedVisibleCount === records.length);
   $("#panel").innerHTML = `
     <div class="card">
       <h2>生图记录</h2>
@@ -187,11 +217,17 @@ function renderRecords(focusTarget = "") {
         </label>
         <div class="filter-count">共 ${state.records.length} 条，当前 ${records.length} 条</div>
       </div>
+      <div class="bulk-bar">
+        <span>已选择 ${state.selectedRecords.size} 条</span>
+        <button class="tiny danger" id="bulkDeleteRecords" type="button" ${state.selectedRecords.size ? "" : "disabled"}>批量删除</button>
+        <button class="tiny secondary" id="clearRecordSelection" type="button" ${state.selectedRecords.size ? "" : "disabled"}>清空选择</button>
+      </div>
       <div class="table-wrap">
         ${records.length ? `
           <table>
             <thead>
               <tr>
+                <th class="select-col"><input id="selectAllRecords" type="checkbox" ${allVisibleSelected ? "checked" : ""} aria-label="选择当前筛选的全部记录"></th>
                 <th>图片</th>
                 <th>用户</th>
                 <th>提示词</th>
@@ -205,6 +241,7 @@ function renderRecords(focusTarget = "") {
             <tbody>
               ${records.map((record) => `
                 <tr>
+                  <td class="select-col"><input class="record-select" type="checkbox" data-record-id="${escapeHtml(record.id)}" ${state.selectedRecords.has(record.id) ? "checked" : ""} aria-label="选择记录"></td>
                   <td>${record.imageUrl ? `<a href="${escapeHtml(record.imageUrl)}" target="_blank"><img class="thumb" src="${escapeHtml(record.imageUrl)}" alt=""></a>` : `<div class="thumb"></div>`}</td>
                   <td><strong>${escapeHtml(record.userName || record.userEmail || "未知用户")}</strong><br><span class="muted">${escapeHtml(record.userEmail || record.userId)}</span></td>
                   <td class="prompt-cell">
@@ -236,6 +273,22 @@ function renderRecords(focusTarget = "") {
     state.recordFilters.public = event.target.value;
     renderRecords();
   });
+  $("#selectAllRecords")?.addEventListener("change", (event) => {
+    setAllVisibleRecords(records, event.target.checked);
+    renderRecords();
+  });
+  $("#bulkDeleteRecords").addEventListener("click", bulkDeleteRecords);
+  $("#clearRecordSelection").addEventListener("click", () => {
+    state.selectedRecords.clear();
+    renderRecords();
+  });
+  $$(".record-select").forEach((input) => {
+    input.addEventListener("change", () => {
+      if (input.checked) state.selectedRecords.add(input.dataset.recordId);
+      else state.selectedRecords.delete(input.dataset.recordId);
+      renderRecords();
+    });
+  });
   $$(".prompt-toggle").forEach((button) => {
     button.addEventListener("click", () => {
       const expanded = button.classList.toggle("expanded");
@@ -250,6 +303,9 @@ function renderRecords(focusTarget = "") {
 
 function renderUsers(focusTarget = "") {
   const users = filteredUsers();
+  const selectableUsers = users.filter((user) => user.id !== state.user?.id);
+  const selectedVisibleCount = selectableUsers.filter((user) => state.selectedUsers.has(user.id)).length;
+  const allVisibleSelected = Boolean(selectableUsers.length && selectedVisibleCount === selectableUsers.length);
   $("#panel").innerHTML = `
     <div class="card">
       <h2>用户管理</h2>
@@ -271,10 +327,18 @@ function renderUsers(focusTarget = "") {
         </label>
         <div class="filter-count">共 ${state.users.length} 人，当前 ${users.length} 人</div>
       </div>
+      <div class="bulk-bar">
+        <span>已选择 ${state.selectedUsers.size} 人</span>
+        <button class="tiny" id="bulkEnableUsers" type="button" ${state.selectedUsers.size ? "" : "disabled"}>批量启用</button>
+        <button class="tiny" id="bulkDisableUsers" type="button" ${state.selectedUsers.size ? "" : "disabled"}>批量停用</button>
+        <button class="tiny danger" id="bulkDeleteUsers" type="button" ${state.selectedUsers.size ? "" : "disabled"}>批量删除</button>
+        <button class="tiny secondary" id="clearUserSelection" type="button" ${state.selectedUsers.size ? "" : "disabled"}>清空选择</button>
+      </div>
       <div class="table-wrap">
         ${users.length ? `<table>
           <thead>
             <tr>
+              <th class="select-col"><input id="selectAllUsers" type="checkbox" ${allVisibleSelected ? "checked" : ""} aria-label="选择当前筛选的全部用户"></th>
               <th>用户</th>
               <th>角色</th>
               <th>状态</th>
@@ -287,6 +351,7 @@ function renderUsers(focusTarget = "") {
           <tbody>
             ${users.map((user) => `
               <tr data-user-id="${escapeHtml(user.id)}">
+                <td class="select-col"><input class="user-select" type="checkbox" data-user-id="${escapeHtml(user.id)}" ${state.selectedUsers.has(user.id) ? "checked" : ""} ${user.id === state.user.id ? "disabled" : ""} aria-label="选择用户"></td>
                 <td><strong>${escapeHtml(user.name || user.email)}</strong><br><span class="muted">${escapeHtml(user.email)}</span></td>
                 <td>
                   <select class="role-input" ${user.id === state.user.id ? "disabled" : ""}>
@@ -327,6 +392,24 @@ function renderUsers(focusTarget = "") {
   $("#userStatusFilter").addEventListener("change", (event) => {
     state.userFilters.status = event.target.value;
     renderUsers();
+  });
+  $("#selectAllUsers")?.addEventListener("change", (event) => {
+    setAllVisibleUsers(users, event.target.checked);
+    renderUsers();
+  });
+  $("#bulkEnableUsers").addEventListener("click", () => bulkUpdateUsers("active"));
+  $("#bulkDisableUsers").addEventListener("click", () => bulkUpdateUsers("disabled"));
+  $("#bulkDeleteUsers").addEventListener("click", bulkDeleteUsers);
+  $("#clearUserSelection").addEventListener("click", () => {
+    state.selectedUsers.clear();
+    renderUsers();
+  });
+  $$(".user-select").forEach((input) => {
+    input.addEventListener("change", () => {
+      if (input.checked) state.selectedUsers.add(input.dataset.userId);
+      else state.selectedUsers.delete(input.dataset.userId);
+      renderUsers();
+    });
   });
   $$(".save-user").forEach((button) => {
     button.addEventListener("click", () => saveUser(button.closest("tr")));
@@ -376,6 +459,7 @@ async function loadPanel() {
   } else {
     state.settings = await api("/api/admin/settings");
   }
+  pruneSelections();
 }
 
 async function login(event) {
@@ -424,6 +508,7 @@ async function deleteUser(row) {
   if (!confirm(`确定删除 ${name} 吗？该用户的生图记录和图片文件也会一起删除。`)) return;
   try {
     await api(`/api/admin/users/${row.dataset.userId}`, { method: "DELETE" });
+    state.selectedUsers.delete(row.dataset.userId);
     toast("用户已删除");
     await loadPanel();
     renderUsers();
@@ -436,11 +521,66 @@ async function deleteRecord(id) {
   if (!confirm("确定删除这条生图记录吗？对应图片文件也会一起删除。")) return;
   try {
     await api(`/api/admin/generations/${id}`, { method: "DELETE" });
+    state.selectedRecords.delete(id);
     toast("生图记录已删除");
     await loadPanel();
     renderRecords();
   } catch (error) {
     toast(error.message);
+  }
+}
+
+async function bulkDeleteRecords() {
+  const ids = [...state.selectedRecords];
+  if (!ids.length) return;
+  if (!confirm(`确定删除选中的 ${ids.length} 条生图记录吗？对应图片文件也会一起删除。`)) return;
+  try {
+    await Promise.all(ids.map((id) => api(`/api/admin/generations/${encodeURIComponent(id)}`, { method: "DELETE" })));
+    state.selectedRecords.clear();
+    toast("已批量删除生图记录");
+    await loadPanel();
+    renderRecords();
+  } catch (error) {
+    toast(error.message);
+    await loadPanel();
+    renderRecords();
+  }
+}
+
+async function bulkDeleteUsers() {
+  const ids = [...state.selectedUsers].filter((id) => id !== state.user?.id);
+  if (!ids.length) return;
+  if (!confirm(`确定删除选中的 ${ids.length} 个用户吗？这些用户的生图记录和图片文件也会一起删除。`)) return;
+  try {
+    await Promise.all(ids.map((id) => api(`/api/admin/users/${encodeURIComponent(id)}`, { method: "DELETE" })));
+    state.selectedUsers.clear();
+    toast("已批量删除用户");
+    await loadPanel();
+    renderUsers();
+  } catch (error) {
+    toast(error.message);
+    await loadPanel();
+    renderUsers();
+  }
+}
+
+async function bulkUpdateUsers(status) {
+  const ids = [...state.selectedUsers].filter((id) => id !== state.user?.id);
+  if (!ids.length) return;
+  const label = status === "active" ? "启用" : "停用";
+  if (!confirm(`确定批量${label}选中的 ${ids.length} 个用户吗？`)) return;
+  try {
+    await Promise.all(ids.map((id) => api(`/api/admin/users/${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      body: JSON.stringify({ status })
+    })));
+    toast(`已批量${label}用户`);
+    await loadPanel();
+    renderUsers();
+  } catch (error) {
+    toast(error.message);
+    await loadPanel();
+    renderUsers();
   }
 }
 
