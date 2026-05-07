@@ -399,6 +399,20 @@ a {
   transform: translateX(-50%);
 }
 
+.chat-view:not(.hidden) .sticky-composer {
+  bottom: 44px;
+}
+
+.generation-reviews {
+  position: fixed;
+  left: 50%;
+  bottom: 12px;
+  z-index: 39;
+  margin: 0;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
 .composer {
   width: 100%;
   background: #fcfcfc;
@@ -1193,7 +1207,7 @@ a {
 }
 
 .bottom-spacer {
-  height: 180px;
+  height: 220px;
 }
 
 .library-view {
@@ -2550,6 +2564,15 @@ a {
 
   .sticky-composer {
     bottom: 10px;
+  }
+
+  .chat-view:not(.hidden) .sticky-composer {
+    bottom: 36px;
+  }
+
+  .generation-reviews {
+    bottom: 8px;
+    font-size: 12px;
   }
 
   .editor-header {
