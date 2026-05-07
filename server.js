@@ -147,6 +147,7 @@ function serializeUser(user) {
     role: user.role,
     status: user.status,
     credits: user.credits,
+    usedCredits: user.usedCredits || 0,
     createdAt: user.createdAt
   };
 }

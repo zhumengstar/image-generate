@@ -73,6 +73,7 @@ function mapUser(row) {
     role: row.role,
     status: row.status,
     credits: Number(row.credits || 0),
+    usedCredits: Number(row.used_credits || 0),
     createdAt: toIso(row.created_at),
     updatedAt: toIso(row.updated_at)
   };
@@ -401,7 +402,19 @@ async function createUser(user) {
 }
 
 async function listUsers() {
-  const [rows] = await getPool().execute("SELECT * FROM users ORDER BY created_at DESC");
+  const [rows] = await getPool().execute(
+    `SELECT u.*,
+            COALESCE(usage_stats.generated_count, 0) * COALESCE(s.generation_credit_cost, 0) AS used_credits
+       FROM users u
+       CROSS JOIN app_settings s
+       LEFT JOIN (
+         SELECT user_id, COUNT(*) AS generated_count
+           FROM generations
+          GROUP BY user_id
+       ) usage_stats ON usage_stats.user_id = u.id
+      WHERE s.id = 1
+      ORDER BY u.created_at DESC`
+  );
   return rows.map(mapUser);
 }
 

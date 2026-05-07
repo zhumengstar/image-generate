@@ -378,7 +378,7 @@ function renderUsers(focusTarget = "") {
               <th>角色</th>
               <th>状态</th>
               <th>积分</th>
-              <th>增减积分</th>
+              <th>使用积分量</th>
               <th>注册时间</th>
               <th></th>
             </tr>
@@ -401,7 +401,7 @@ function renderUsers(focusTarget = "") {
                   </select>
                 </td>
                 <td><input class="credits-input" type="number" min="0" value="${Number(user.credits || 0)}"></td>
-                <td><input class="credit-delta-input" type="number" step="1" value="0"></td>
+                <td><strong>${Number(user.usedCredits || 0)}</strong></td>
                 <td>${fmt(user.createdAt)}</td>
                 <td>
                   <div class="row-actions">
@@ -526,8 +526,7 @@ async function saveUser(row) {
       body: JSON.stringify({
         role: $(".role-input", row).value,
         status: $(".status-input", row).value,
-        credits: Number($(".credits-input", row).value || 0),
-        creditDelta: Number($(".credit-delta-input", row).value || 0)
+        credits: Number($(".credits-input", row).value || 0)
       })
     });
     toast("用户已保存");
