@@ -583,7 +583,7 @@ function renderAll() {
 }
 
 function recentFallbackItems() {
-  return getPromptSource().slice(0, 12).map((prompt, index) => ({
+  return getPromptSource().slice(0, 4).map((prompt, index) => ({
     id: `sample_${prompt.id}`,
     prompt: prompt.prompt,
     title: prompt.title,
@@ -612,7 +612,7 @@ function recentHistoryItems() {
 
 function renderRecentCreations() {
   const items = recentHistoryItems();
-  const displayItems = items.length ? items : recentFallbackItems();
+  const displayItems = (items.length ? items : recentFallbackItems()).slice(0, 4);
   elements.recentMasonry.innerHTML = displayItems.map((item) => {
     const visual = item.image
       ? `<img src="${escapeHtml(promptImageUrl(item.image))}" loading="lazy" decoding="async" fetchpriority="low" alt="${escapeHtml(truncate(item.prompt, 80))}">`
