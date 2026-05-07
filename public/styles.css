@@ -2185,7 +2185,7 @@ a {
   min-height: calc(100vh - 160px);
   display: grid;
   place-items: center;
-  padding: 110px 48px 132px;
+  padding: 110px 48px 168px;
 }
 
 .editor-upload-card {
@@ -2302,10 +2302,10 @@ a {
 }
 
 .editor-prompt-bar {
-  position: absolute;
+  position: fixed;
   left: 50%;
-  bottom: 28px;
-  z-index: 6;
+  bottom: 18px;
+  z-index: 45;
   transform: translateX(-50%);
   width: min(880px, calc(100vw - 320px));
   min-height: 72px;
@@ -2580,12 +2580,12 @@ a {
   }
 
   .editor-canvas-area {
-    padding: 104px 18px 158px;
+    padding: 104px 18px 178px;
   }
 
   .editor-prompt-bar {
     width: calc(100vw - 32px);
-    bottom: 84px;
+    bottom: 12px;
     border-radius: 28px;
     flex-wrap: wrap;
   }
