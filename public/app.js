@@ -765,6 +765,39 @@ function renderComposers() {
   syncComposers();
 }
 
+function pastedImageFiles(event, prefix = "pasted-image") {
+  return [...(event.clipboardData?.items || [])]
+    .filter((item) => item.kind === "file" && item.type.startsWith("image/"))
+    .map((item, index) => {
+      const file = item.getAsFile();
+      if (!file) return null;
+      const extension = file.type.split("/")[1] || "png";
+      return new File([file], `${prefix}-${Date.now()}-${index}.${extension}`, { type: file.type });
+    })
+    .filter(Boolean);
+}
+
+function addReferenceFiles(files, sourceForm, { pasted = false } = {}) {
+  const selectedFiles = [...(files || [])].filter((file) => file?.type?.startsWith("image/"));
+  if (!selectedFiles.length) return false;
+  const slots = Math.max(0, 4 - state.references.length);
+  if (!slots) {
+    showToast(state.lang === "zh" ? "参考图最多 4 张" : "Up to 4 reference images", "ri-image-line");
+    return true;
+  }
+  state.references.push(...selectedFiles.slice(0, slots).map((file) => ({
+    file,
+    url: URL.createObjectURL(file),
+    name: file.name
+  })));
+  syncReferences(sourceForm);
+  if (pasted) showToast(state.lang === "zh" ? "已粘贴图片" : "Image pasted", "ri-image-add-line");
+  if (selectedFiles.length > slots) {
+    showToast(state.lang === "zh" ? "参考图最多 4 张" : "Up to 4 reference images", "ri-image-line");
+  }
+  return true;
+}
+
 function createComposer(sticky) {
   const fragment = elements.composerTemplate.content.cloneNode(true);
   const form = $(".composer", fragment);
@@ -783,21 +816,21 @@ function createComposer(sticky) {
     autoSizePromptBox(textarea);
     syncComposers(form);
   });
+  textarea.addEventListener("paste", (event) => {
+    const files = pastedImageFiles(event, "reference");
+    if (!files.length) return;
+    event.preventDefault();
+    addReferenceFiles(files, form, { pasted: true });
+  });
   textarea.addEventListener("keydown", (event) => {
     if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
       form.requestSubmit();
     }
   });
   referenceInput.addEventListener("change", () => {
-    const files = [...referenceInput.files].slice(0, 4);
-    state.references = files.map((file) => ({
-      file,
-      url: URL.createObjectURL(file),
-      name: file.name
-    }));
-    renderReferences(referenceRow);
-    syncReferences(form);
-    if (state.references.length) {
+    const added = addReferenceFiles(referenceInput.files, form);
+    referenceInput.value = "";
+    if (added) {
       showToast(state.lang === "zh" ? "已添加参考图预览，当前后端仍按文本生成" : "Reference previews added; backend currently generates from text", "ri-image-add-line");
     }
   });
@@ -1530,11 +1563,11 @@ function hexToRgba(hex, alpha) {
 
 async function handleEditorUpload(files) {
   const selectedFiles = [...(files || [])].filter((file) => file?.type?.startsWith("image/"));
-  if (!selectedFiles.length) return;
+  if (!selectedFiles.length) return false;
   const slots = Math.max(0, 3 - state.editor.images.length);
   if (!slots) {
     showToast(state.lang === "zh" ? "最多上传 3 张图片" : "You can upload up to 3 images", "ri-image-line");
-    return;
+    return false;
   }
   const images = await Promise.all(selectedFiles.slice(0, slots).map(async (file) => {
     const dataUrl = await blobToDataUrl(file);
@@ -1548,6 +1581,7 @@ async function handleEditorUpload(files) {
   if (selectedFiles.length > slots) {
     showToast(state.lang === "zh" ? "最多上传 3 张图片" : "You can upload up to 3 images", "ri-image-line");
   }
+  return true;
 }
 
 function blobToDataUrl(blob) {
@@ -2501,6 +2535,14 @@ function bindGlobalEvents() {
   });
   elements.editorPromptInput.addEventListener("input", () => {
     state.editor.prompt = elements.editorPromptInput.value;
+  });
+  elements.editorPromptInput.addEventListener("paste", async (event) => {
+    const files = pastedImageFiles(event, "edit-image");
+    if (!files.length) return;
+    event.preventDefault();
+    if (await handleEditorUpload(files)) {
+      showToast(state.lang === "zh" ? "已粘贴图片" : "Image pasted", "ri-image-add-line");
+    }
   });
   elements.editorUploadInput.addEventListener("change", (event) => {
     handleEditorUpload(event.target.files);
