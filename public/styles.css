@@ -333,16 +333,20 @@ a {
   margin: 0;
   color: var(--ink);
   letter-spacing: -0.04em;
-  font-size: clamp(38px, 6vw, 80px);
+  font-size: clamp(38px, 5.35vw, 76px);
   line-height: 1.05;
   font-weight: 500;
+}
+
+.hero h1 {
+  white-space: nowrap;
 }
 
 .hero h1 em {
   font-family: "Instrument Serif", serif;
   font-style: italic;
   font-weight: 400;
-  font-size: clamp(46px, 7.5vw, 100px);
+  font-size: clamp(46px, 6.45vw, 92px);
 }
 
 .hero-desc,
@@ -2567,6 +2571,7 @@ a {
 
   .hero h1 {
     font-size: 38px;
+    white-space: normal;
   }
 
   .hero h1 em {

@@ -184,7 +184,7 @@ const i18n = {
     logout: "Logout",
     headPre: "Create with",
     headItalic: "imagination",
-    headPost: "",
+    headPost: "world",
     desc: "Transform your ideas into polished visuals with GPT Image. Just describe what you see in your mind.",
     reviews: "Generated images are saved to your gallery",
     todayGeneratedPrefix: "Today generated",
@@ -478,7 +478,9 @@ async function api(path, options = {}) {
 }
 
 function text(key) {
-  return i18n[state.lang][key] || i18n.zh[key] || key;
+  if (Object.hasOwn(i18n[state.lang], key)) return i18n[state.lang][key];
+  if (Object.hasOwn(i18n.zh, key)) return i18n.zh[key];
+  return key;
 }
 
 function local(value) {
@@ -535,7 +537,9 @@ function formatDailyCount(value) {
 
 function updateDailyMetric() {
   if (!elements.todayGeneratedText) return;
-  elements.todayGeneratedText.textContent = `${text("todayGeneratedPrefix")} ${formatDailyCount(state.stats.todayGenerated)} ${text("todayGeneratedSuffix")}`;
+  const count = Math.max(0, Number(state.stats.todayGenerated) || 0);
+  const suffix = state.lang === "en" && count === 1 ? "image" : text("todayGeneratedSuffix");
+  elements.todayGeneratedText.textContent = `${text("todayGeneratedPrefix")} ${formatDailyCount(count)} ${suffix}`;
 }
 
 function updateNav() {
