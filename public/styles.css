@@ -551,18 +551,22 @@ a {
 }
 
 .send-button {
-  background: linear-gradient(180deg, #3a3a3a 0%, #050505 100%);
+  background:
+    radial-gradient(circle at 20% 20%, rgba(255, 255, 255, 0.42), transparent 28%),
+    linear-gradient(135deg, #6366f1 0%, #ec4899 55%, #f97316 100%);
   color: #fff;
-  padding: 0 28px;
+  padding: 0 22px;
   min-height: 54px;
-  min-width: 86px;
+  min-width: 98px;
   border-radius: 16px;
   font-size: 14px;
   font-weight: 700;
   white-space: nowrap;
-  box-shadow:
-    inset -4px -6px 25px 0 rgba(201, 201, 201, 0.08),
-    inset 4px 4px 10px 0 rgba(29, 29, 29, 0.24);
+  box-shadow: 0 12px 28px rgba(236, 72, 153, 0.28);
+}
+
+.send-button i {
+  font-size: 18px;
 }
 
 .send-button span {
@@ -570,7 +574,7 @@ a {
 }
 
 .send-button:disabled {
-  background: #a7a9ad;
+  background: #d1d5db;
   color: #fff;
   opacity: 1;
   box-shadow: none;
