@@ -598,7 +598,7 @@ function shouldShowHero() {
   return state.forceHero || !state.showGenerationView;
 }
 
-function showHomeHero({ focusPrompt = false, smooth = false, scrollTop = 130 } = {}) {
+function showHomeHero({ focusPrompt = false, smooth = false, scrollTop = 150 } = {}) {
   state.view = "home";
   state.forceHero = true;
   state.showGenerationView = false;
