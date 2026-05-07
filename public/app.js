@@ -1,3 +1,7 @@
+if ("scrollRestoration" in window.history) {
+  window.history.scrollRestoration = "manual";
+}
+
 const state = {
   lang: localStorage.getItem("lang") || "zh",
   user: null,
@@ -2276,10 +2280,12 @@ async function bootstrap() {
   } catch (error) {
     showToast(error.message, "ri-error-warning-line");
   }
+  state.view = "home";
   state.forceHero = true;
   state.showGenerationView = false;
   renderAll();
   setupHeroVideo();
+  window.scrollTo({ top: 0, behavior: "auto" });
 }
 
 function bindGlobalEvents() {
