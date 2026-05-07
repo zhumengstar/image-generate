@@ -712,8 +712,10 @@ a {
 }
 
 .recent-tile {
-  display: block;
+  display: flex;
+  flex-direction: column;
   width: 100%;
+  height: 100%;
   margin: 0;
   padding: 0;
   border: 0;
@@ -732,30 +734,34 @@ a {
 }
 
 .recent-visual {
-  height: 220px;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  display: grid;
+  place-items: center;
   background: #f1f5f9;
 }
 
 .recent-tile.short .recent-visual {
-  height: 170px;
+  height: auto;
 }
 
 .recent-tile.medium .recent-visual {
-  height: 230px;
+  height: auto;
 }
 
 .recent-tile.tall .recent-visual {
-  height: 300px;
+  height: auto;
 }
 
 .recent-visual img,
 .recent-gradient {
   width: 100%;
   height: 100%;
-  object-fit: cover;
 }
 
 .recent-visual img {
+  object-fit: contain;
+  background: #fff;
   transform: translateZ(0);
 }
 
@@ -770,6 +776,8 @@ a {
 .recent-caption {
   display: grid;
   gap: 5px;
+  grid-template-rows: auto 1fr;
+  min-height: 104px;
   padding: 12px 13px 14px;
 }
 
@@ -778,6 +786,10 @@ a {
   font-size: 13px;
   font-weight: 650;
   line-height: 1.35;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .recent-caption span {
@@ -2505,11 +2517,11 @@ a {
 
   .recent-visual,
   .recent-tile.medium .recent-visual {
-    height: 180px;
+    height: auto;
   }
 
   .recent-tile.tall .recent-visual {
-    height: 240px;
+    height: auto;
   }
 
   .editor-view {
