@@ -259,7 +259,7 @@ function renderRecords(focusTarget = "") {
       </div>
       <div class="table-wrap">
         ${records.length ? `
-          <table>
+          <table class="records-table">
             <thead>
               <tr>
                 <th class="select-col"><input id="selectAllRecords" type="checkbox" ${allVisibleSelected ? "checked" : ""} aria-label="选择当前筛选的全部记录"></th>
@@ -278,16 +278,16 @@ function renderRecords(focusTarget = "") {
                 <tr>
                   <td class="select-col"><input class="record-select" type="checkbox" data-record-id="${escapeHtml(record.id)}" ${state.selectedRecords.has(record.id) ? "checked" : ""} aria-label="选择记录"></td>
                   <td>${record.imageUrl ? `<a href="${escapeHtml(record.imageUrl)}" target="_blank"><img class="thumb" src="${escapeHtml(record.imageUrl)}" alt=""></a>` : `<div class="thumb"></div>`}</td>
-                  <td><strong>${escapeHtml(record.userName || record.userEmail || "未知用户")}</strong><br><span class="muted">${escapeHtml(record.userEmail || record.userId)}</span></td>
+                  <td class="user-cell"><strong>${escapeHtml(record.userName || record.userEmail || "未知用户")}</strong><br><span class="muted">${escapeHtml(record.userEmail || record.userId)}</span></td>
                   <td class="prompt-cell">
                     <button class="prompt-toggle" type="button" aria-expanded="false">${escapeHtml(record.prompt)}</button>
                     ${record.errorMessage ? `<br><span class="muted">错误：${escapeHtml(record.errorMessage)}</span>` : ""}
                   </td>
-                  <td><strong>${escapeHtml(record.ipAddress || "-")}</strong><br><span class="muted">${escapeHtml(record.userAgent || "-")}</span></td>
-                  <td>${record.isPublic ? "是" : "否"}</td>
+                  <td class="meta-cell"><strong>${escapeHtml(record.ipAddress || "-")}</strong><span>${escapeHtml(record.userAgent || "-")}</span></td>
+                  <td class="center-cell">${record.isPublic ? "是" : "否"}</td>
                   <td><span class="status ${record.status === "failed" ? "failed" : ""}">${escapeHtml(record.status)}</span></td>
                   <td>${fmt(record.createdAt)}</td>
-                  <td><button class="tiny danger delete-record" type="button" data-record-id="${escapeHtml(record.id)}">删除</button></td>
+                  <td><button class="tiny danger delete-record action-button" type="button" data-record-id="${escapeHtml(record.id)}">删除</button></td>
                 </tr>
               `).join("")}
             </tbody>
