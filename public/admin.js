@@ -93,6 +93,39 @@ function confirmInline({ title, message, confirmText = "确认删除", cancelTex
   });
 }
 
+function openRecordImagePreview(record) {
+  if (!record?.imageUrl) return;
+  const layer = document.createElement("div");
+  layer.className = "image-preview-layer";
+  layer.innerHTML = `
+    <section class="image-preview-dialog" role="dialog" aria-modal="true" aria-label="图片预览">
+      <button class="preview-close" type="button" aria-label="关闭"><i class="ri-close-line"></i></button>
+      <img src="${escapeHtml(record.imageUrl)}" alt="${escapeHtml(record.prompt || "图片预览")}">
+      <div class="preview-meta">
+        <p>${escapeHtml(record.prompt || "")}</p>
+        <a class="secondary" href="${escapeHtml(record.imageUrl)}" download="${escapeHtml(record.id || "image")}.png">
+          <i class="ri-download-line"></i> 下载
+        </a>
+      </div>
+    </section>
+  `;
+
+  const close = () => {
+    document.removeEventListener("keydown", onKeydown);
+    layer.remove();
+  };
+  const onKeydown = (event) => {
+    if (event.key === "Escape") close();
+  };
+
+  layer.addEventListener("click", (event) => {
+    if (event.target === layer) close();
+  });
+  $(".preview-close", layer).addEventListener("click", close);
+  document.addEventListener("keydown", onKeydown);
+  document.body.appendChild(layer);
+}
+
 function renderLogin() {
   $("#logoutBtn").classList.add("hidden");
   $("#adminApp").innerHTML = `
@@ -357,7 +390,7 @@ function renderRecords(focusTarget = "") {
               ${records.map((record) => `
                 <tr>
                   <td class="select-col"><input class="record-select" type="checkbox" data-record-id="${escapeHtml(record.id)}" ${state.selectedRecords.has(record.id) ? "checked" : ""} aria-label="选择记录"></td>
-                  <td>${record.imageUrl ? `<a href="${escapeHtml(record.imageUrl)}" target="_blank"><img class="thumb" src="${escapeHtml(record.imageUrl)}" alt=""></a>` : `<div class="thumb"></div>`}</td>
+                  <td>${record.imageUrl ? `<button class="thumb-button" type="button" data-preview-record="${escapeHtml(record.id)}" aria-label="预览图片"><img class="thumb" src="${escapeHtml(record.imageUrl)}" alt=""></button>` : `<div class="thumb"></div>`}</td>
                   <td class="user-cell"><strong>${escapeHtml(record.userName || record.userEmail || "未知用户")}</strong><br><span class="muted">${escapeHtml(record.userEmail || record.userId)}</span></td>
                   <td class="prompt-cell">
                     <button class="prompt-toggle" type="button" aria-expanded="false">${escapeHtml(record.prompt)}</button>
@@ -411,6 +444,12 @@ function renderRecords(focusTarget = "") {
     button.addEventListener("click", () => {
       const expanded = button.classList.toggle("expanded");
       button.setAttribute("aria-expanded", expanded ? "true" : "false");
+    });
+  });
+  $$("[data-preview-record]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const record = state.records.find((item) => String(item.id) === button.dataset.previewRecord);
+      openRecordImagePreview(record);
     });
   });
   $$(".delete-record").forEach((button) => {
