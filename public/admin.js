@@ -142,7 +142,10 @@ function renderRecords() {
                 <tr>
                   <td>${record.imageUrl ? `<a href="${escapeHtml(record.imageUrl)}" target="_blank"><img class="thumb" src="${escapeHtml(record.imageUrl)}" alt=""></a>` : `<div class="thumb"></div>`}</td>
                   <td><strong>${escapeHtml(record.userName || record.userEmail || "未知用户")}</strong><br><span class="muted">${escapeHtml(record.userEmail || record.userId)}</span></td>
-                  <td class="prompt-cell">${escapeHtml(record.prompt)}${record.errorMessage ? `<br><span class="muted">错误：${escapeHtml(record.errorMessage)}</span>` : ""}</td>
+                  <td class="prompt-cell">
+                    <button class="prompt-toggle" type="button" aria-expanded="false">${escapeHtml(record.prompt)}</button>
+                    ${record.errorMessage ? `<br><span class="muted">错误：${escapeHtml(record.errorMessage)}</span>` : ""}
+                  </td>
                   <td><strong>${escapeHtml(record.ipAddress || "-")}</strong><br><span class="muted">${escapeHtml(record.userAgent || "-")}</span></td>
                   <td>${record.isPublic ? "是" : "否"}</td>
                   <td><span class="status ${record.status === "failed" ? "failed" : ""}">${escapeHtml(record.status)}</span></td>
@@ -155,6 +158,12 @@ function renderRecords() {
       </div>
     </div>
   `;
+  $$(".prompt-toggle").forEach((button) => {
+    button.addEventListener("click", () => {
+      const expanded = button.classList.toggle("expanded");
+      button.setAttribute("aria-expanded", expanded ? "true" : "false");
+    });
+  });
 }
 
 function renderUsers() {
