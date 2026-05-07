@@ -1525,6 +1525,8 @@ a {
 }
 
 .work-card {
+  display: grid;
+  grid-template-rows: auto 1fr;
   overflow: hidden;
   border: 1px solid rgba(226, 232, 240, 0.92);
   border-radius: 18px;
@@ -1608,6 +1610,7 @@ a {
 
 .work-body {
   display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
   gap: 10px;
   padding: 12px;
 }
@@ -1623,6 +1626,12 @@ a {
 .work-body span {
   color: #98a2b3;
   font-size: 12px;
+}
+
+.work-footer {
+  align-self: end;
+  display: grid;
+  gap: 10px;
 }
 
 .work-actions {
