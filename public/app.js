@@ -2305,11 +2305,6 @@ function bindGlobalEvents() {
     state.promptVisible = 20;
     renderLibrary();
   });
-  $("[data-editor-home]", elements.editorView).addEventListener("click", () => {
-    state.forceHero = true;
-    state.showGenerationView = false;
-    setView("home");
-  });
   $$("[data-editor-create]", elements.editorView).forEach((button) => button.addEventListener("click", () => {
     state.forceHero = true;
     state.showGenerationView = false;
