@@ -2149,9 +2149,6 @@ async function bootstrap() {
   state.showGenerationView = false;
   renderAll();
   setupHeroVideo();
-  if (state.view === "home") {
-    setTimeout(openComplianceNotice, 260);
-  }
 }
 
 function bindGlobalEvents() {
@@ -2219,6 +2216,20 @@ function bindGlobalEvents() {
   elements.editorPromptForm.addEventListener("submit", submitImageEdit);
 }
 
-bindGlobalEvents();
-bootstrap();
-loadPromptLibrary();
+async function startApp() {
+  bindGlobalEvents();
+  await Promise.all([
+    bootstrap(),
+    loadPromptLibrary()
+  ]);
+  renderAll();
+  elements.app.classList.remove("app-booting");
+  requestAnimationFrame(() => {
+    elements.app.classList.add("app-ready");
+    if (state.view === "home") {
+      setTimeout(openComplianceNotice, 260);
+    }
+  });
+}
+
+startApp();

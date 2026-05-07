@@ -67,6 +67,15 @@ a {
   overflow-x: hidden;
 }
 
+.app.app-booting {
+  opacity: 0;
+}
+
+.app.app-ready {
+  opacity: 1;
+  transition: opacity 0.16s ease-out;
+}
+
 .ambient {
   position: fixed;
   inset: 0;
