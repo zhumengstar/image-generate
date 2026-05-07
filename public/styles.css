@@ -255,6 +255,9 @@ a {
   overflow: hidden;
   pointer-events: none;
   z-index: 0;
+  background:
+    radial-gradient(circle at 50% 18%, rgba(255, 255, 255, 0.42), transparent 30%),
+    linear-gradient(135deg, #eef2ff 0%, #f8fafc 52%, #fff7ed 100%);
 }
 
 .hero-video-layer video {

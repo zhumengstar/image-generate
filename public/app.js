@@ -35,6 +35,7 @@ const state = {
   promptItems: [],
   promptVisible: 20,
   promptLoading: true,
+  historyLoaded: false,
   restoreWorksOnViewerClose: false,
   restorePreviewOnViewerClose: null,
   editor: {
@@ -465,6 +466,15 @@ const elements = {
 };
 
 let heroVideoWatchdog = null;
+let promptLibraryLoadPromise = null;
+
+function runWhenIdle(callback, timeout = 1200) {
+  if ("requestIdleCallback" in window) {
+    window.requestIdleCallback(callback, { timeout });
+    return;
+  }
+  window.setTimeout(callback, Math.min(timeout, 300));
+}
 
 async function api(path, options = {}) {
   const response = await fetch(path, {
@@ -1026,6 +1036,7 @@ function scrollToBottom() {
 async function loadHistory() {
   if (!state.user) {
     state.history = [];
+    state.historyLoaded = true;
     return;
   }
   try {
@@ -1049,6 +1060,8 @@ async function loadHistory() {
       }));
   } catch (error) {
     showToast(error.message, "ri-error-warning-line");
+  } finally {
+    state.historyLoaded = true;
   }
 }
 
@@ -1551,8 +1564,10 @@ function getTagCounts() {
 }
 
 async function loadPromptLibrary() {
+  if (promptLibraryLoadPromise) return promptLibraryLoadPromise;
   state.promptLoading = true;
   if (state.view === "library") renderLibrary();
+  promptLibraryLoadPromise = (async () => {
   try {
     const data = await fetch("/prompts.json", { cache: "force-cache" }).then((response) => response.json());
     state.promptItems = (data.prompts || []).map((prompt) => ({
@@ -1565,6 +1580,8 @@ async function loadPromptLibrary() {
     state.promptLoading = false;
     renderAll();
   }
+  })();
+  return promptLibraryLoadPromise;
 }
 
 function setupHeroVideo() {
@@ -1579,6 +1596,12 @@ function setupHeroVideo() {
   video.loop = true;
   video.playsInline = true;
   video.setAttribute("playsinline", "");
+  if (!video.querySelector("source") && video.dataset.src) {
+    const source = document.createElement("source");
+    source.src = video.dataset.src;
+    source.type = "video/mp4";
+    video.append(source);
+  }
   video.addEventListener("pause", () => playHeroVideo());
   video.addEventListener("stalled", restartHeroVideo);
   video.addEventListener("suspend", () => playHeroVideo());
@@ -1784,7 +1807,7 @@ async function loadMyWorks(forceReload = false) {
   const grid = $("#worksGrid", elements.modalLayer);
   if (!grid) return;
   grid.innerHTML = `<div class="empty-message">${text("loadingPrompts")}</div>`;
-  if (forceReload) await loadHistory();
+  if (forceReload || !state.historyLoaded) await loadHistory();
   const items = [...state.history]
     .filter((item) => item.status === "done" && item.images?.[0])
     .sort((a, b) => new Date(b.time || 0) - new Date(a.time || 0));
@@ -2041,6 +2064,7 @@ async function logout() {
   await api("/api/auth/logout", { method: "POST" }).catch(() => null);
   state.user = null;
   state.history = [];
+  state.historyLoaded = true;
   state.checkin = { checkedInToday: false, credit: state.settings?.checkinCredit || 1 };
   state.forceHero = true;
   state.showGenerationView = false;
@@ -2274,9 +2298,6 @@ async function bootstrap() {
     state.settings = data.settings;
     state.firstRun = data.firstRun;
     state.checkin = data.checkin || state.checkin;
-    await loadHistory();
-    await loadStats();
-    await loadPublicGallery();
   } catch (error) {
     showToast(error.message, "ri-error-warning-line");
   }
@@ -2284,8 +2305,16 @@ async function bootstrap() {
   state.forceHero = true;
   state.showGenerationView = false;
   renderAll();
-  setupHeroVideo();
   window.scrollTo({ top: 0, behavior: "auto" });
+  runWhenIdle(() => {
+    loadStats();
+    loadPublicGallery();
+    loadHistory().then(() => {
+      renderRecentCreations();
+      renderHistory();
+    });
+  });
+  runWhenIdle(setupHeroVideo, 1800);
 }
 
 function bindGlobalEvents() {
@@ -2300,10 +2329,16 @@ function bindGlobalEvents() {
     openImageCreate();
     restartHeroVideo();
   });
-  elements.promptLibraryBtn.addEventListener("click", () => setView("library"));
+  elements.promptLibraryBtn.addEventListener("click", () => {
+    setView("library");
+    if (state.promptLoading) loadPromptLibrary();
+  });
   elements.imageCreateBtn.addEventListener("click", openImageCreate);
   elements.imageEditorBtn.addEventListener("click", () => openImageEditor());
-  elements.openLibraryInlineBtn.addEventListener("click", () => setView("library"));
+  elements.openLibraryInlineBtn.addEventListener("click", () => {
+    setView("library");
+    if (state.promptLoading) loadPromptLibrary();
+  });
   elements.contactBtn.addEventListener("click", openContactModal);
   elements.langBtn.addEventListener("click", () => {
     state.lang = state.lang === "zh" ? "en" : "zh";
@@ -2356,10 +2391,7 @@ function bindGlobalEvents() {
 
 async function startApp() {
   bindGlobalEvents();
-  await Promise.all([
-    bootstrap(),
-    loadPromptLibrary()
-  ]);
+  await bootstrap();
   renderAll();
   elements.app.classList.remove("app-booting");
   requestAnimationFrame(() => {
@@ -2368,6 +2400,7 @@ async function startApp() {
       setTimeout(openComplianceNotice, 260);
     }
   });
+  runWhenIdle(loadPromptLibrary, 1600);
 }
 
 startApp();
