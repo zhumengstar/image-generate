@@ -715,6 +715,17 @@ async function saveGeneratedImages(user, request, openaiResult) {
   return saved;
 }
 
+async function deleteGeneratedFiles(filenames = []) {
+  await Promise.all([...new Set(filenames.filter(Boolean))].map(async (filename) => {
+    const absolutePath = path.join(GENERATED_DIR, path.basename(filename));
+    try {
+      await fs.unlink(absolutePath);
+    } catch (error) {
+      if (error?.code !== "ENOENT") console.error("Generated file delete failed:", error);
+    }
+  }));
+}
+
 async function routeApi(req, res, url) {
   if (req.method === "GET" && url.pathname === "/api/health") {
     const settings = await store.getSettings();
@@ -911,6 +922,19 @@ async function routeApi(req, res, url) {
   }
 
   const userMatch = url.pathname.match(/^\/api\/admin\/users\/([^/]+)$/);
+  if (userMatch && req.method === "DELETE") {
+    const current = await getCurrentUser(req);
+    ensureAuthenticated(current);
+    ensureAdmin(current);
+    const target = await store.getUserById(userMatch[1]);
+    if (!target) throw httpError("User not found", 404);
+    if (target.id === current.user.id) throw httpError("You cannot delete your own account", 400);
+    const filenames = await store.getGenerationFilenamesForUser(target.id);
+    await store.deleteUser(target.id);
+    await deleteGeneratedFiles(filenames);
+    return sendJson(res, 200, { ok: true });
+  }
+
   if (userMatch && req.method === "PATCH") {
     const current = await getCurrentUser(req);
     ensureAuthenticated(current);
@@ -937,6 +961,17 @@ async function routeApi(req, res, url) {
       user = await store.adjustCredits(target.id, delta);
     }
     return sendJson(res, 200, { user: serializeUser(user) });
+  }
+
+  const adminGenerationMatch = url.pathname.match(/^\/api\/admin\/generations\/([^/]+)$/);
+  if (adminGenerationMatch && req.method === "DELETE") {
+    const current = await getCurrentUser(req);
+    ensureAuthenticated(current);
+    ensureAdmin(current);
+    const result = await store.deleteGenerationRequest(adminGenerationMatch[1]);
+    if (!result) throw httpError("Generation record not found", 404);
+    await deleteGeneratedFiles(result.filenames);
+    return sendJson(res, 200, { ok: true });
   }
 
   if (req.method === "GET" && url.pathname === "/api/images/history") {

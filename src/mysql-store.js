@@ -686,6 +686,38 @@ async function listGenerationRequests(limit = 100) {
   return rows.map(mapGenerationRequest);
 }
 
+async function deleteGenerationRequest(id) {
+  const connection = await getPool().getConnection();
+  try {
+    await connection.beginTransaction();
+    const [requestRows] = await connection.execute("SELECT * FROM generation_requests WHERE id = ? LIMIT 1", [id]);
+    const request = mapGenerationRequest(requestRows[0]);
+    if (!request) {
+      await connection.rollback();
+      return null;
+    }
+    const generationIds = [...new Set([request.firstGenerationId, ...(request.generationIds || [])].filter(Boolean))];
+    let filenames = [];
+    if (generationIds.length) {
+      const placeholders = generationIds.map(() => "?").join(",");
+      const [generationRows] = await connection.execute(
+        `SELECT filename FROM generations WHERE id IN (${placeholders})`,
+        generationIds
+      );
+      filenames = generationRows.map((row) => row.filename).filter(Boolean);
+      await connection.execute(`DELETE FROM generations WHERE id IN (${placeholders})`, generationIds);
+    }
+    await connection.execute("DELETE FROM generation_requests WHERE id = ?", [id]);
+    await connection.commit();
+    return { request, filenames };
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
+}
+
 async function listGenerationsForUser(user, limit = 60) {
   const normalizedLimit = Math.max(1, Math.min(200, Number(limit) || 60));
   const sql =
@@ -708,6 +740,16 @@ async function listPublicGenerations(limit = 60) {
 async function getGenerationById(id) {
   const [rows] = await getPool().execute("SELECT * FROM generations WHERE id = ? LIMIT 1", [id]);
   return mapGeneration(rows[0]);
+}
+
+async function getGenerationFilenamesForUser(userId) {
+  const [rows] = await getPool().execute("SELECT filename FROM generations WHERE user_id = ?", [userId]);
+  return rows.map((row) => row.filename).filter(Boolean);
+}
+
+async function deleteUser(id) {
+  const [result] = await getPool().execute("DELETE FROM users WHERE id = ?", [id]);
+  return result.affectedRows === 1;
 }
 
 async function countTodayGenerations() {
@@ -745,8 +787,11 @@ module.exports = {
   insertGenerationRequest,
   updateGenerationRequest,
   listGenerationRequests,
+  deleteGenerationRequest,
   listGenerationsForUser,
   listPublicGenerations,
   getGenerationById,
+  getGenerationFilenamesForUser,
+  deleteUser,
   countTodayGenerations
 };

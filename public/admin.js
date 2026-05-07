@@ -7,7 +7,9 @@ const state = {
   view: "records",
   settings: null,
   users: [],
-  records: []
+  records: [],
+  recordFilters: { q: "", status: "all", public: "all" },
+  userFilters: { q: "", role: "all", status: "all" }
 };
 
 async function api(path, options = {}) {
@@ -119,12 +121,74 @@ function renderPanel() {
   renderSettings();
 }
 
-function renderRecords() {
+function matchesSearch(values, query) {
+  if (!query) return true;
+  const normalized = query.trim().toLowerCase();
+  return values.some((value) => String(value || "").toLowerCase().includes(normalized));
+}
+
+function filteredRecords() {
+  const filters = state.recordFilters;
+  return state.records.filter((record) => {
+    if (filters.status !== "all" && record.status !== filters.status) return false;
+    if (filters.public !== "all" && String(Number(Boolean(record.isPublic))) !== filters.public) return false;
+    return matchesSearch([
+      record.prompt,
+      record.userName,
+      record.userEmail,
+      record.userId,
+      record.ipAddress,
+      record.userAgent,
+      record.status,
+      record.errorMessage
+    ], filters.q);
+  });
+}
+
+function filteredUsers() {
+  const filters = state.userFilters;
+  return state.users.filter((user) => {
+    if (filters.role !== "all" && user.role !== filters.role) return false;
+    if (filters.status !== "all" && user.status !== filters.status) return false;
+    return matchesSearch([user.name, user.email, user.role, user.status, user.id], filters.q);
+  });
+}
+
+function focusFilterInput(id) {
+  const input = $(`#${id}`);
+  if (!input) return;
+  input.focus();
+  const end = input.value.length;
+  input.setSelectionRange?.(end, end);
+}
+
+function renderRecords(focusTarget = "") {
+  const records = filteredRecords();
   $("#panel").innerHTML = `
     <div class="card">
       <h2>生图记录</h2>
+      <div class="admin-filters">
+        <label>搜索<input id="recordSearch" value="${escapeHtml(state.recordFilters.q)}" placeholder="提示词 / 用户 / IP / 浏览器"></label>
+        <label>状态
+          <select id="recordStatusFilter">
+            <option value="all" ${state.recordFilters.status === "all" ? "selected" : ""}>全部状态</option>
+            <option value="pending" ${state.recordFilters.status === "pending" ? "selected" : ""}>等待中</option>
+            <option value="running" ${state.recordFilters.status === "running" ? "selected" : ""}>生成中</option>
+            <option value="completed" ${state.recordFilters.status === "completed" ? "selected" : ""}>已完成</option>
+            <option value="failed" ${state.recordFilters.status === "failed" ? "selected" : ""}>失败</option>
+          </select>
+        </label>
+        <label>公开
+          <select id="recordPublicFilter">
+            <option value="all" ${state.recordFilters.public === "all" ? "selected" : ""}>全部</option>
+            <option value="1" ${state.recordFilters.public === "1" ? "selected" : ""}>公开</option>
+            <option value="0" ${state.recordFilters.public === "0" ? "selected" : ""}>不公开</option>
+          </select>
+        </label>
+        <div class="filter-count">共 ${state.records.length} 条，当前 ${records.length} 条</div>
+      </div>
       <div class="table-wrap">
-        ${state.records.length ? `
+        ${records.length ? `
           <table>
             <thead>
               <tr>
@@ -135,10 +199,11 @@ function renderRecords() {
                 <th>公开</th>
                 <th>状态</th>
                 <th>时间</th>
+                <th>操作</th>
               </tr>
             </thead>
             <tbody>
-              ${state.records.map((record) => `
+              ${records.map((record) => `
                 <tr>
                   <td>${record.imageUrl ? `<a href="${escapeHtml(record.imageUrl)}" target="_blank"><img class="thumb" src="${escapeHtml(record.imageUrl)}" alt=""></a>` : `<div class="thumb"></div>`}</td>
                   <td><strong>${escapeHtml(record.userName || record.userEmail || "未知用户")}</strong><br><span class="muted">${escapeHtml(record.userEmail || record.userId)}</span></td>
@@ -150,28 +215,64 @@ function renderRecords() {
                   <td>${record.isPublic ? "是" : "否"}</td>
                   <td><span class="status ${record.status === "failed" ? "failed" : ""}">${escapeHtml(record.status)}</span></td>
                   <td>${fmt(record.createdAt)}</td>
+                  <td><button class="tiny danger delete-record" type="button" data-record-id="${escapeHtml(record.id)}">删除</button></td>
                 </tr>
               `).join("")}
             </tbody>
           </table>
-        ` : `<div class="empty">暂无生图记录</div>`}
+        ` : `<div class="empty">${state.records.length ? "没有符合筛选条件的记录" : "暂无生图记录"}</div>`}
       </div>
     </div>
   `;
+  $("#recordSearch").addEventListener("input", (event) => {
+    state.recordFilters.q = event.target.value;
+    renderRecords("recordSearch");
+  });
+  $("#recordStatusFilter").addEventListener("change", (event) => {
+    state.recordFilters.status = event.target.value;
+    renderRecords();
+  });
+  $("#recordPublicFilter").addEventListener("change", (event) => {
+    state.recordFilters.public = event.target.value;
+    renderRecords();
+  });
   $$(".prompt-toggle").forEach((button) => {
     button.addEventListener("click", () => {
       const expanded = button.classList.toggle("expanded");
       button.setAttribute("aria-expanded", expanded ? "true" : "false");
     });
   });
+  $$(".delete-record").forEach((button) => {
+    button.addEventListener("click", () => deleteRecord(button.dataset.recordId));
+  });
+  if (focusTarget) focusFilterInput(focusTarget);
 }
 
-function renderUsers() {
+function renderUsers(focusTarget = "") {
+  const users = filteredUsers();
   $("#panel").innerHTML = `
     <div class="card">
       <h2>用户管理</h2>
+      <div class="admin-filters">
+        <label>搜索<input id="userSearch" value="${escapeHtml(state.userFilters.q)}" placeholder="昵称 / 邮箱 / 用户 ID"></label>
+        <label>角色
+          <select id="userRoleFilter">
+            <option value="all" ${state.userFilters.role === "all" ? "selected" : ""}>全部角色</option>
+            <option value="admin" ${state.userFilters.role === "admin" ? "selected" : ""}>管理员</option>
+            <option value="user" ${state.userFilters.role === "user" ? "selected" : ""}>用户</option>
+          </select>
+        </label>
+        <label>状态
+          <select id="userStatusFilter">
+            <option value="all" ${state.userFilters.status === "all" ? "selected" : ""}>全部状态</option>
+            <option value="active" ${state.userFilters.status === "active" ? "selected" : ""}>启用</option>
+            <option value="disabled" ${state.userFilters.status === "disabled" ? "selected" : ""}>停用</option>
+          </select>
+        </label>
+        <div class="filter-count">共 ${state.users.length} 人，当前 ${users.length} 人</div>
+      </div>
       <div class="table-wrap">
-        <table>
+        ${users.length ? `<table>
           <thead>
             <tr>
               <th>用户</th>
@@ -184,7 +285,7 @@ function renderUsers() {
             </tr>
           </thead>
           <tbody>
-            ${state.users.map((user) => `
+            ${users.map((user) => `
               <tr data-user-id="${escapeHtml(user.id)}">
                 <td><strong>${escapeHtml(user.name || user.email)}</strong><br><span class="muted">${escapeHtml(user.email)}</span></td>
                 <td>
@@ -202,17 +303,38 @@ function renderUsers() {
                 <td><input class="credits-input" type="number" min="0" value="${Number(user.credits || 0)}"></td>
                 <td><input class="credit-delta-input" type="number" step="1" value="0"></td>
                 <td>${fmt(user.createdAt)}</td>
-                <td><button class="tiny save-user" type="button">保存</button></td>
+                <td>
+                  <div class="row-actions">
+                    <button class="tiny save-user" type="button">保存</button>
+                    <button class="tiny danger delete-user" type="button" ${user.id === state.user.id ? "disabled" : ""}>删除</button>
+                  </div>
+                </td>
               </tr>
             `).join("")}
           </tbody>
-        </table>
+        </table>` : `<div class="empty">${state.users.length ? "没有符合筛选条件的用户" : "暂无用户"}</div>`}
       </div>
     </div>
   `;
+  $("#userSearch").addEventListener("input", (event) => {
+    state.userFilters.q = event.target.value;
+    renderUsers("userSearch");
+  });
+  $("#userRoleFilter").addEventListener("change", (event) => {
+    state.userFilters.role = event.target.value;
+    renderUsers();
+  });
+  $("#userStatusFilter").addEventListener("change", (event) => {
+    state.userFilters.status = event.target.value;
+    renderUsers();
+  });
   $$(".save-user").forEach((button) => {
     button.addEventListener("click", () => saveUser(button.closest("tr")));
   });
+  $$(".delete-user").forEach((button) => {
+    button.addEventListener("click", () => deleteUser(button.closest("tr")));
+  });
+  if (focusTarget) focusFilterInput(focusTarget);
 }
 
 function renderSettings() {
@@ -292,6 +414,31 @@ async function saveUser(row) {
     toast("用户已保存");
     await loadPanel();
     renderUsers();
+  } catch (error) {
+    toast(error.message);
+  }
+}
+
+async function deleteUser(row) {
+  const name = $("strong", row)?.textContent || "该用户";
+  if (!confirm(`确定删除 ${name} 吗？该用户的生图记录和图片文件也会一起删除。`)) return;
+  try {
+    await api(`/api/admin/users/${row.dataset.userId}`, { method: "DELETE" });
+    toast("用户已删除");
+    await loadPanel();
+    renderUsers();
+  } catch (error) {
+    toast(error.message);
+  }
+}
+
+async function deleteRecord(id) {
+  if (!confirm("确定删除这条生图记录吗？对应图片文件也会一起删除。")) return;
+  try {
+    await api(`/api/admin/generations/${id}`, { method: "DELETE" });
+    toast("生图记录已删除");
+    await loadPanel();
+    renderRecords();
   } catch (error) {
     toast(error.message);
   }
