@@ -942,7 +942,7 @@ async function routeApi(req, res, url) {
   if (req.method === "GET" && url.pathname === "/api/images/history") {
     const current = await getCurrentUser(req);
     ensureAuthenticated(current);
-    const generations = (await store.listGenerationsForUser(current.user, 60)).map((generation) => ({
+    const generations = (await store.listGenerationsForUser(current.user, 200)).map((generation) => ({
       ...generation,
       imageUrl: `/api/images/${generation.id}/file`
     }));

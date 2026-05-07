@@ -596,16 +596,15 @@ function recentFallbackItems() {
 }
 
 function recentHistoryItems() {
-  return state.publicGallery
+  return state.history
     .filter((item) => item.images?.[0])
-    .slice(0, 16)
     .map((item, index) => ({
       id: item.id,
       prompt: item.prompt,
       title: truncate(item.prompt, 36),
       image: item.images[0],
       isSample: false,
-      isPublic: true,
+      isPublic: Boolean(item.isPublic),
       heightClass: ["medium", "tall", "short", "medium"][index % 4],
       time: item.time
     }));
