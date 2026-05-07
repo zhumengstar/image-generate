@@ -417,6 +417,7 @@ const elements = {
   toastLayer: $("#toastLayer"),
   brandBtn: $("#brandBtn"),
   promptLibraryBtn: $("#promptLibraryBtn"),
+  imageCreateBtn: $("#imageCreateBtn"),
   imageEditorBtn: $("#imageEditorBtn"),
   contactBtn: $("#contactBtn"),
   langBtn: $("#langBtn"),
@@ -2276,14 +2277,19 @@ async function bootstrap() {
 }
 
 function bindGlobalEvents() {
-  elements.brandBtn.addEventListener("click", () => {
+  const openImageCreate = () => {
     state.forceHero = true;
     state.showGenerationView = false;
     setView("home");
     window.scrollTo({ top: 0, behavior: "smooth" });
+    setTimeout(() => $(".prompt-box", elements.heroComposerMount)?.focus(), 120);
+  };
+  elements.brandBtn.addEventListener("click", () => {
+    openImageCreate();
     restartHeroVideo();
   });
   elements.promptLibraryBtn.addEventListener("click", () => setView("library"));
+  elements.imageCreateBtn.addEventListener("click", openImageCreate);
   elements.imageEditorBtn.addEventListener("click", () => openImageEditor());
   elements.openLibraryInlineBtn.addEventListener("click", () => setView("library"));
   elements.contactBtn.addEventListener("click", openContactModal);
