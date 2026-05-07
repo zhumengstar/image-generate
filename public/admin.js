@@ -56,6 +56,41 @@ function toast(message) {
   setTimeout(() => node.remove(), 2600);
 }
 
+function confirmInline({ title, message, confirmText = "确认删除", cancelText = "取消" }) {
+  return new Promise((resolve) => {
+    const layer = document.createElement("div");
+    layer.className = "confirm-layer";
+    layer.innerHTML = `
+      <div class="confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
+        <h3 id="confirmTitle">${escapeHtml(title)}</h3>
+        <p>${escapeHtml(message)}</p>
+        <div class="confirm-actions">
+          <button class="secondary" type="button" data-confirm-cancel>${escapeHtml(cancelText)}</button>
+          <button class="danger" type="button" data-confirm-ok>${escapeHtml(confirmText)}</button>
+        </div>
+      </div>
+    `;
+
+    const finish = (value) => {
+      document.removeEventListener("keydown", onKeydown);
+      layer.remove();
+      resolve(value);
+    };
+    const onKeydown = (event) => {
+      if (event.key === "Escape") finish(false);
+    };
+
+    layer.addEventListener("click", (event) => {
+      if (event.target === layer) finish(false);
+    });
+    $("[data-confirm-cancel]", layer).addEventListener("click", () => finish(false));
+    $("[data-confirm-ok]", layer).addEventListener("click", () => finish(true));
+    document.addEventListener("keydown", onKeydown);
+    document.body.appendChild(layer);
+    $("[data-confirm-ok]", layer).focus();
+  });
+}
+
 function renderLogin() {
   $("#logoutBtn").classList.add("hidden");
   $("#adminApp").innerHTML = `
@@ -533,7 +568,12 @@ async function deleteRecord(id) {
 async function bulkDeleteRecords() {
   const ids = [...state.selectedRecords];
   if (!ids.length) return;
-  if (!confirm(`确定删除选中的 ${ids.length} 条生图记录吗？对应图片文件也会一起删除。`)) return;
+  const confirmed = await confirmInline({
+    title: "批量删除生图记录",
+    message: `将删除选中的 ${ids.length} 条生图记录，对应图片文件也会一起删除。`,
+    confirmText: "删除记录"
+  });
+  if (!confirmed) return;
   try {
     await Promise.all(ids.map((id) => api(`/api/admin/generations/${encodeURIComponent(id)}`, { method: "DELETE" })));
     state.selectedRecords.clear();
@@ -550,7 +590,12 @@ async function bulkDeleteRecords() {
 async function bulkDeleteUsers() {
   const ids = [...state.selectedUsers].filter((id) => id !== state.user?.id);
   if (!ids.length) return;
-  if (!confirm(`确定删除选中的 ${ids.length} 个用户吗？这些用户的生图记录和图片文件也会一起删除。`)) return;
+  const confirmed = await confirmInline({
+    title: "批量删除用户",
+    message: `将删除选中的 ${ids.length} 个用户，这些用户的生图记录和图片文件也会一起删除。`,
+    confirmText: "删除用户"
+  });
+  if (!confirmed) return;
   try {
     await Promise.all(ids.map((id) => api(`/api/admin/users/${encodeURIComponent(id)}`, { method: "DELETE" })));
     state.selectedUsers.clear();
