@@ -1693,6 +1693,39 @@ function closeModal() {
   elements.modalLayer.removeEventListener("click", onModalBackdrop);
 }
 
+function confirmAction({ title, message, confirmText, cancelText }) {
+  return new Promise((resolve) => {
+    const layer = document.createElement("div");
+    layer.className = "inline-confirm-layer";
+    layer.innerHTML = `
+      <div class="inline-confirm" role="dialog" aria-modal="true">
+        <h3>${escapeHtml(title)}</h3>
+        <p>${escapeHtml(message)}</p>
+        <div class="inline-confirm-actions">
+          <button class="modal-secondary" type="button" data-confirm-cancel>${escapeHtml(cancelText)}</button>
+          <button class="modal-danger" type="button" data-confirm-ok>${escapeHtml(confirmText)}</button>
+        </div>
+      </div>
+    `;
+    const close = (value) => {
+      document.removeEventListener("keydown", onKeydown);
+      layer.remove();
+      resolve(value);
+    };
+    const onKeydown = (event) => {
+      if (event.key === "Escape") close(false);
+    };
+    layer.addEventListener("click", (event) => {
+      if (event.target === layer) close(false);
+    });
+    $("[data-confirm-cancel]", layer).addEventListener("click", () => close(false));
+    $("[data-confirm-ok]", layer).addEventListener("click", () => close(true));
+    document.addEventListener("keydown", onKeydown);
+    document.body.appendChild(layer);
+    $("[data-confirm-ok]", layer).focus();
+  });
+}
+
 function openMyWorksModal() {
   if (!state.user) {
     openAuthModal("login");
@@ -1740,6 +1773,7 @@ async function loadMyWorks(forceReload = false) {
             <a href="${escapeHtml(item.images[0])}" download="${escapeHtml(item.id)}.png"><i class="ri-download-line"></i>${text("download")}</a>
             <button type="button" data-work-retry="${escapeHtml(item.id)}"><i class="ri-refresh-line"></i>${text("retry")}</button>
             <button type="button" data-work-editor="${escapeHtml(item.id)}"><i class="ri-magic-line"></i>${text("openEditor")}</button>
+            <button class="work-delete" type="button" data-work-delete="${escapeHtml(item.id)}"><i class="ri-delete-bin-line"></i>${state.lang === "zh" ? "删除" : "Delete"}</button>
           </div>
         </div>
       </div>
@@ -1771,6 +1805,34 @@ async function loadMyWorks(forceReload = false) {
       if (item?.images?.[0]) openImageViewer(item.images[0], item.prompt, item.id);
     });
   });
+  $$("[data-work-delete]", grid).forEach((button) => {
+    button.addEventListener("click", () => deleteWork(button.dataset.workDelete));
+  });
+}
+
+async function deleteWork(id) {
+  const item = state.history.find((entry) => String(entry.id) === String(id));
+  if (!item) return;
+  const confirmed = await confirmAction({
+    title: state.lang === "zh" ? "删除作品" : "Delete work",
+    message: state.lang === "zh"
+      ? "确定删除这张作品吗？后台管理中的生图记录会保留。"
+      : "Delete this work? Admin generation records will be kept.",
+    confirmText: state.lang === "zh" ? "删除" : "Delete",
+    cancelText: state.lang === "zh" ? "取消" : "Cancel"
+  });
+  if (!confirmed) return;
+  try {
+    await api(`/api/images/${encodeURIComponent(id)}`, { method: "DELETE" });
+    state.history = state.history.filter((entry) => String(entry.id) !== String(id));
+    renderHistory();
+    renderRecentCreations();
+    if (item.isPublic) await loadPublicGallery();
+    await loadMyWorks(false);
+    showToast(state.lang === "zh" ? "作品已删除" : "Work deleted", "ri-delete-bin-line");
+  } catch (error) {
+    showToast(error.message, "ri-error-warning-line");
+  }
 }
 
 function openImageViewer(imageUrl, prompt = "", id = "image") {

@@ -1659,6 +1659,10 @@ a {
   gap: 6px;
 }
 
+.works-grid .work-actions {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
 .work-actions a,
 .work-actions button {
   min-height: 34px;
@@ -1680,6 +1684,72 @@ a {
 .work-actions a i,
 .work-actions button i {
   flex: 0 0 auto;
+}
+
+.work-actions .work-delete {
+  border-color: #fecaca;
+  background: #fff5f5;
+  color: #dc2626;
+}
+
+.work-actions .work-delete:hover {
+  border-color: #f87171;
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.inline-confirm-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(15, 23, 42, 0.34);
+  backdrop-filter: blur(10px);
+}
+
+.inline-confirm {
+  width: min(420px, 100%);
+  border: 1px solid rgba(226, 232, 240, 0.96);
+  border-radius: 22px;
+  background: #fff;
+  box-shadow: 0 28px 80px rgba(15, 23, 42, 0.22);
+  padding: 22px;
+}
+
+.inline-confirm h3 {
+  margin: 0 0 8px;
+  font-size: 21px;
+  letter-spacing: -0.02em;
+}
+
+.inline-confirm p {
+  margin: 0;
+  color: #667085;
+  line-height: 1.65;
+  font-size: 14px;
+}
+
+.inline-confirm-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.modal-danger {
+  width: 100%;
+  min-height: 44px;
+  border: 0;
+  border-radius: 14px;
+  background: #dc2626;
+  color: #fff;
+  font-weight: 700;
+}
+
+.modal-danger:hover {
+  background: #b91c1c;
 }
 
 .preview-image,

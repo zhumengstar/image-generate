@@ -102,7 +102,8 @@ function mapGeneration(row) {
     isPublic: Boolean(row.is_public ?? 0),
     revisedPrompt: row.revised_prompt || "",
     usage,
-    createdAt: toIso(row.created_at)
+    createdAt: toIso(row.created_at),
+    deletedAt: toIso(row.deleted_at)
   };
 }
 
@@ -236,6 +237,10 @@ async function runMigrations() {
   const [generationColumns] = await db.execute("SHOW COLUMNS FROM generations LIKE 'is_public'");
   if (!generationColumns.length) {
     await db.query("ALTER TABLE generations ADD COLUMN is_public TINYINT(1) NOT NULL DEFAULT 0 AFTER filename");
+  }
+  const [generationDeletedColumns] = await db.execute("SHOW COLUMNS FROM generations LIKE 'deleted_at'");
+  if (!generationDeletedColumns.length) {
+    await db.query("ALTER TABLE generations ADD COLUMN deleted_at DATETIME(3) NULL AFTER created_at");
   }
 
   await db.query(`
@@ -735,8 +740,8 @@ async function listGenerationsForUser(user, limit = 60) {
   const normalizedLimit = Math.max(1, Math.min(200, Number(limit) || 60));
   const sql =
     user.role === "admin"
-      ? `SELECT * FROM generations ORDER BY created_at DESC LIMIT ${normalizedLimit}`
-      : `SELECT * FROM generations WHERE user_id = ? ORDER BY created_at DESC LIMIT ${normalizedLimit}`;
+      ? `SELECT * FROM generations WHERE deleted_at IS NULL ORDER BY created_at DESC LIMIT ${normalizedLimit}`
+      : `SELECT * FROM generations WHERE user_id = ? AND deleted_at IS NULL ORDER BY created_at DESC LIMIT ${normalizedLimit}`;
   const params = user.role === "admin" ? [] : [user.id];
   const [rows] = await getPool().execute(sql, params);
   return rows.map(mapGeneration);
@@ -745,7 +750,7 @@ async function listGenerationsForUser(user, limit = 60) {
 async function listPublicGenerations(limit = 60) {
   const normalizedLimit = Math.max(1, Math.min(200, Number(limit) || 60));
   const [rows] = await getPool().execute(
-    `SELECT * FROM generations WHERE is_public = 1 ORDER BY created_at DESC LIMIT ${normalizedLimit}`
+    `SELECT * FROM generations WHERE is_public = 1 AND deleted_at IS NULL ORDER BY created_at DESC LIMIT ${normalizedLimit}`
   );
   return rows.map(mapGeneration);
 }
@@ -753,6 +758,27 @@ async function listPublicGenerations(limit = 60) {
 async function getGenerationById(id) {
   const [rows] = await getPool().execute("SELECT * FROM generations WHERE id = ? LIMIT 1", [id]);
   return mapGeneration(rows[0]);
+}
+
+async function deleteGeneration(id) {
+  const connection = await getPool().getConnection();
+  try {
+    await connection.beginTransaction();
+    const [rows] = await connection.execute("SELECT * FROM generations WHERE id = ? LIMIT 1 FOR UPDATE", [id]);
+    const generation = mapGeneration(rows[0]);
+    if (!generation) {
+      await connection.rollback();
+      return null;
+    }
+    await connection.execute("UPDATE generations SET deleted_at = ? WHERE id = ?", [new Date(), id]);
+    await connection.commit();
+    return generation;
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
 }
 
 async function getGenerationFilenamesForUser(userId) {
@@ -804,6 +830,7 @@ module.exports = {
   listGenerationsForUser,
   listPublicGenerations,
   getGenerationById,
+  deleteGeneration,
   getGenerationFilenamesForUser,
   deleteUser,
   countTodayGenerations

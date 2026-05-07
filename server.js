@@ -985,6 +985,19 @@ async function routeApi(req, res, url) {
     return sendJson(res, 200, { generations });
   }
 
+  const imageMatch = url.pathname.match(/^\/api\/images\/([^/]+)$/);
+  if (imageMatch && req.method === "DELETE") {
+    const current = await getCurrentUser(req);
+    ensureAuthenticated(current);
+    const generation = await store.getGenerationById(imageMatch[1]);
+    if (!generation || !canTouchGeneration(current.user, generation)) {
+      throw httpError("Image not found", 404);
+    }
+    const deleted = await store.deleteGeneration(generation.id);
+    if (!deleted) throw httpError("Image not found", 404);
+    return sendJson(res, 200, { ok: true });
+  }
+
   if (req.method === "GET" && url.pathname === "/api/images/public") {
     const limit = sanitizePositiveInt(url.searchParams.get("limit"), 60, 120);
     const generations = (await store.listPublicGenerations(limit)).map((generation) => ({
@@ -1193,7 +1206,10 @@ async function routeApi(req, res, url) {
     if (!generation) {
       throw httpError("Image not found", 404);
     }
-    if (!generation.isPublic) {
+    if (generation.deletedAt) {
+      ensureAuthenticated(current);
+      ensureAdmin(current);
+    } else if (!generation.isPublic) {
       ensureAuthenticated(current);
       if (!canTouchGeneration(current.user, generation)) {
         throw httpError("Image not found", 404);
