@@ -705,6 +705,16 @@ a {
   font-size: 13px;
 }
 
+@media (min-width: 901px) {
+  .hero .reviews {
+    position: absolute;
+    left: 50%;
+    bottom: 18px;
+    transform: translateX(-50%);
+    margin: 0;
+  }
+}
+
 .recent-section {
   max-width: 1200px;
   margin: 0 auto;
