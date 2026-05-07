@@ -553,32 +553,28 @@ a {
 }
 
 .polish-button {
-  width: 48px;
-  min-width: 48px;
+  min-width: 112px;
   min-height: 54px;
-  padding: 0;
+  padding: 0 16px;
   border-radius: 16px;
   background:
     radial-gradient(circle at 26% 20%, rgba(255, 255, 255, 0.62), transparent 24%),
     linear-gradient(135deg, #7c3aed 0%, #c026d3 52%, #ec4899 100%);
   color: #fff;
   border: 1px solid rgba(255, 255, 255, 0.42);
-  font-size: 22px;
+  font-size: 14px;
   font-weight: 800;
+  white-space: nowrap;
   box-shadow: 0 12px 26px rgba(168, 85, 247, 0.3);
-  flex: 0 0 48px;
+  flex: 0 0 auto;
 }
 
 .polish-button span {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
   white-space: nowrap;
 }
 
 .polish-button i {
+  font-size: 22px;
   filter: drop-shadow(0 1px 3px rgba(88, 28, 135, 0.28));
 }
 
@@ -2623,8 +2619,8 @@ a {
   }
 
   .polish-button {
-    min-width: 48px;
-    padding-inline: 0;
+    min-width: 96px;
+    padding-inline: 12px;
   }
 
   .prompt-box {
