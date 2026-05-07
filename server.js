@@ -34,6 +34,7 @@ const store = require("./src/mysql-store");
 const PUBLIC_DIR = path.join(ROOT_DIR, "public");
 const DATA_DIR = path.resolve(process.env.DATA_DIR || path.join(ROOT_DIR, "data"));
 const GENERATED_DIR = path.join(DATA_DIR, "generated");
+const PROMPT_IMAGE_CACHE_DIR = path.join(DATA_DIR, "prompt-images");
 const PORT = Number(process.env.PORT || 3000);
 const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 7;
 const MAX_BODY_BYTES = 16 * 1024 * 1024;
@@ -339,6 +340,61 @@ function getClientIp(req) {
 
 function getUserAgent(req) {
   return String(req.headers["user-agent"] || "").slice(0, 512);
+}
+
+function validatePromptImageUrl(value) {
+  let parsed;
+  try {
+    parsed = new URL(String(value || ""));
+  } catch {
+    throw httpError("Invalid image URL", 400);
+  }
+  const allowedHosts = new Set(["raw.githubusercontent.com"]);
+  if (parsed.protocol !== "https:" || !allowedHosts.has(parsed.hostname)) {
+    throw httpError("Unsupported image host", 400);
+  }
+  if (!/\.(?:png|jpe?g|webp)(?:$|\?)/i.test(parsed.pathname)) {
+    throw httpError("Unsupported image type", 400);
+  }
+  return parsed.toString();
+}
+
+async function sendPromptImage(req, res, sourceUrl) {
+  const safeUrl = validatePromptImageUrl(sourceUrl);
+  const digest = crypto.createHash("sha256").update(safeUrl).digest("hex");
+  const extension = path.extname(new URL(safeUrl).pathname).toLowerCase().replace(/^\./, "") || "jpg";
+  const cachePath = path.join(PROMPT_IMAGE_CACHE_DIR, `${digest}.${extension}`);
+  const contentType = extension === "png" ? "image/png" : extension === "webp" ? "image/webp" : "image/jpeg";
+
+  try {
+    const cached = await fs.readFile(cachePath);
+    res.writeHead(200, {
+      "Content-Type": contentType,
+      "Cache-Control": "public, max-age=31536000, immutable"
+    });
+    res.end(req.method === "HEAD" ? undefined : cached);
+    return;
+  } catch {
+    // Cache miss; fetch below.
+  }
+
+  const response = await fetch(safeUrl, {
+    headers: {
+      "User-Agent": "image2creat-prompt-image-proxy/1.0",
+      Accept: "image/avif,image/webp,image/png,image/jpeg,image/*"
+    }
+  });
+  if (!response.ok) throw httpError(`Prompt image fetch failed: ${response.status}`, 502);
+  const remoteType = response.headers.get("content-type") || "";
+  if (!remoteType.startsWith("image/")) throw httpError("Prompt image response is not an image", 502);
+  const buffer = Buffer.from(await response.arrayBuffer());
+  await fs.mkdir(PROMPT_IMAGE_CACHE_DIR, { recursive: true });
+  await fs.writeFile(cachePath, buffer).catch((error) => console.error("Prompt image cache write failed:", error));
+  res.writeHead(200, {
+    "Content-Type": remoteType,
+    "Cache-Control": "public, max-age=31536000, immutable"
+  });
+  res.end(req.method === "HEAD" ? undefined : buffer);
 }
 
 function enforceGenerationRate(userId) {
@@ -786,6 +842,10 @@ async function routeApi(req, res, url) {
     return sendJson(res, 200, {
       todayGenerated: offset + generatedToday
     });
+  }
+
+  if ((req.method === "GET" || req.method === "HEAD") && url.pathname === "/api/prompt-image") {
+    return sendPromptImage(req, res, url.searchParams.get("url"));
   }
 
   if (req.method === "GET" && url.pathname === "/api/admin/settings") {

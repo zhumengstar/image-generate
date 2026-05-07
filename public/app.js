@@ -615,7 +615,7 @@ function renderRecentCreations() {
   const displayItems = items.length ? items : recentFallbackItems();
   elements.recentMasonry.innerHTML = displayItems.map((item) => {
     const visual = item.image
-      ? `<img src="${item.image}" loading="lazy" decoding="async" fetchpriority="low" alt="${escapeHtml(truncate(item.prompt, 80))}">`
+      ? `<img src="${escapeHtml(promptImageUrl(item.image))}" loading="lazy" decoding="async" fetchpriority="low" alt="${escapeHtml(truncate(item.prompt, 80))}">`
       : `<div class="recent-gradient" style="--art-bg:${item.colors}"><i class="${item.icon}"></i></div>`;
     return `
       <button class="recent-tile ${item.heightClass}" type="button" data-recent-id="${escapeHtml(item.id)}">
@@ -1144,7 +1144,7 @@ function promptCardHtml(prompt) {
     <span>${escapeHtml(tagLabels[state.lang][tag] || tag)}</span>
   `).join("");
   const art = prompt.image
-    ? `<img src="${escapeHtml(prompt.image)}" loading="lazy" decoding="async" fetchpriority="low" alt="${escapeHtml(title)}" onerror="this.parentElement.classList.add('image-error')">`
+    ? `<img src="${escapeHtml(promptImageUrl(prompt.image))}" loading="lazy" decoding="async" fetchpriority="low" alt="${escapeHtml(title)}" onerror="this.parentElement.classList.add('image-error')">`
     : `<i class="${prompt.icon || "ri-image-line"}"></i>`;
   return `
     <article class="prompt-card" style="--art-bg:${prompt.colors || "linear-gradient(135deg,#64748b,#cbd5e1)"}">
@@ -1461,6 +1461,14 @@ function getPromptSource() {
     prompt: local(prompt.prompt),
     tags: [prompt.tag]
   }));
+}
+
+function promptImageUrl(url) {
+  const value = String(url || "");
+  if (value.startsWith("https://raw.githubusercontent.com/")) {
+    return `/api/prompt-image?url=${encodeURIComponent(value)}`;
+  }
+  return value;
 }
 
 function getTagCounts() {
