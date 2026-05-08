@@ -2893,22 +2893,42 @@ a {
   }
 
   .composer-bar {
-    align-items: stretch;
+    align-items: center;
+    gap: 8px;
   }
 
   .composer-spacer {
     display: none;
   }
 
-  .send-button,
   .tool-button {
-    min-width: 64px;
+    min-width: 58px;
     padding-inline: 10px;
   }
 
+  .send-button,
   .polish-button {
-    min-width: 84px;
-    padding-inline: 10px;
+    min-height: 44px;
+    padding-inline: 9px;
+    border-radius: 14px;
+    font-size: 13px;
+    gap: 5px;
+  }
+
+  .polish-button {
+    min-width: 78px;
+  }
+
+  .send-button {
+    min-width: 68px;
+  }
+
+  .polish-button i {
+    font-size: 18px;
+  }
+
+  .send-button i {
+    font-size: 16px;
   }
 
   .prompt-box {
