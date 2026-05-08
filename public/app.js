@@ -1025,7 +1025,8 @@ function startPromptResize(event, form) {
   document.body.classList.add("is-resizing-composer");
 
   const move = (moveEvent) => {
-    state.promptBoxHeight = clampPromptHeight(startHeight + startY - moveEvent.clientY);
+    const upwardDelta = Math.max(0, startY - moveEvent.clientY);
+    state.promptBoxHeight = clampPromptHeight(startHeight + upwardDelta);
     syncComposers();
   };
   const stop = () => {

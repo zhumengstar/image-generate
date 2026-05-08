@@ -438,22 +438,7 @@ a {
 }
 
 .composer-resize-handle::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 7px;
-  height: 3px;
-  border-radius: 999px;
-  background: rgba(124, 58, 237, 0.12);
-  transition: background 0.2s ease, box-shadow 0.2s ease;
-}
-
-.composer-resize-handle:hover::before,
-.composer-resize-handle:focus-visible::before,
-.is-resizing-composer .composer-resize-handle::before {
-  background: linear-gradient(90deg, rgba(124, 58, 237, 0.14), rgba(236, 72, 153, 0.18), rgba(249, 115, 22, 0.14));
-  box-shadow: 0 0 0 4px rgba(124, 58, 237, 0.05);
+  display: none;
 }
 
 .is-resizing-composer,
