@@ -682,6 +682,7 @@ function showHomeHero({ focusPrompt = false, smooth = false, scrollTop = 160 } =
 }
 
 function saveActionHtml(imageUrl, fileName, label = text("download")) {
+  if (window.matchMedia?.("(min-width: 861px)").matches) return "";
   return `<button type="button" data-save-image="${escapeHtml(imageUrl)}" data-save-file="${escapeHtml(fileName)}" data-save-label="${escapeHtml(label)}"><i class="ri-download-line"></i>${escapeHtml(label)}</button>`;
 }
 
@@ -2658,6 +2659,9 @@ function openImageViewer(imageUrl, prompt = "", id = "image", options = {}) {
   state.restorePreviewOnViewerClose = options.restorePreview || null;
   const clampZoom = (value) => Math.min(4, Math.max(0.35, value));
   const fileName = `${String(id || "image").replace(/[^\w.-]+/g, "-")}.png`;
+  const saveButton = window.matchMedia?.("(min-width: 861px)").matches
+    ? ""
+    : `<button type="button" data-save-image="${escapeHtml(imageUrl)}" data-save-file="${escapeHtml(fileName)}" data-save-label="${escapeHtml(text("download"))}" title="${text("download")}" aria-label="${text("download")}"><i class="ri-download-line"></i></button>`;
   openModal(`
     <section class="modal image-viewer-modal" role="dialog" aria-modal="true">
       <button class="close-modal" type="button"><i class="ri-close-line"></i></button>
@@ -2666,7 +2670,7 @@ function openImageViewer(imageUrl, prompt = "", id = "image", options = {}) {
         <span data-viewer-zoom-label>100%</span>
         <button type="button" data-viewer-zoom-in title="放大" aria-label="放大"><i class="ri-add-line"></i></button>
         <button type="button" data-viewer-reset title="复位" aria-label="复位"><i class="ri-fullscreen-exit-line"></i></button>
-        <button type="button" data-save-image="${escapeHtml(imageUrl)}" data-save-file="${escapeHtml(fileName)}" data-save-label="${escapeHtml(text("download"))}" title="${text("download")}" aria-label="${text("download")}"><i class="ri-download-line"></i></button>
+        ${saveButton}
       </div>
       <div class="image-viewer-stage">
         <img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(truncate(prompt, 120))}" data-viewer-image draggable="false">
