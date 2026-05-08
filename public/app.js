@@ -1006,6 +1006,17 @@ async function submitGeneration(form) {
   state.draftPrompt = "";
   state.generationOptions = getComposerOptions(form);
   state.publishToSquare = state.generationOptions.isPublic;
+  const homeReference = state.references[0] || null;
+  const editContext = homeReference?.file
+    ? {
+        primaryImage: {
+          imageData: await blobToDataUrl(homeReference.file),
+          maskData: ""
+        },
+        referenceImages: [],
+        editConsistency: "high"
+      }
+    : null;
   const tempId = `tmp_${Date.now()}`;
   const item = {
     id: tempId,
@@ -1015,7 +1026,8 @@ async function submitGeneration(form) {
     time: new Date().toISOString(),
     isPublic: state.publishToSquare,
     options: { ...state.generationOptions },
-    references: state.references.map((reference) => reference.url)
+    references: state.references.map((reference) => reference.url),
+    editContext
   };
   state.history.push(item);
   state.forceHero = false;
@@ -1028,18 +1040,30 @@ async function submitGeneration(form) {
   scrollToBottom();
 
   try {
-    const data = await api("/api/images/generate", {
-      method: "POST",
-      body: JSON.stringify({
-        prompt,
-        size: item.options.size,
-        quality: item.options.quality,
-        background: item.options.background,
-        outputFormat: item.options.outputFormat,
-        isPublic: item.isPublic,
-        n: 1
-      })
-    });
+    const data = editContext
+      ? await api("/api/images/edit", {
+          method: "POST",
+          body: JSON.stringify({
+            prompt,
+            primaryImage: editContext.primaryImage,
+            referenceImages: [],
+            editConsistency: editContext.editConsistency,
+            size: item.options.size,
+            isPublic: item.isPublic
+          })
+        })
+      : await api("/api/images/generate", {
+          method: "POST",
+          body: JSON.stringify({
+            prompt,
+            size: item.options.size,
+            quality: item.options.quality,
+            background: item.options.background,
+            outputFormat: item.options.outputFormat,
+            isPublic: item.isPublic,
+            n: 1
+          })
+        });
     const generation = data.generations[0];
     state.history = state.history.map((entry) =>
       entry.id === tempId
@@ -1050,7 +1074,8 @@ async function submitGeneration(form) {
             status: "done",
             time: generation.createdAt,
             model: generation.model,
-            isPublic: Boolean(generation.isPublic)
+            isPublic: Boolean(generation.isPublic),
+            editContext
           }
         : entry
     );
