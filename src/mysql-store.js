@@ -785,12 +785,13 @@ async function deleteGenerationRequest(id) {
   }
 }
 
-async function listGenerationsForUser(user, limit = 60) {
+async function listGenerationsForUser(user, limit = 60, offset = 0) {
   const normalizedLimit = Math.max(1, Math.min(200, Number(limit) || 60));
+  const normalizedOffset = Math.max(0, Number(offset) || 0);
   const sql =
     user.role === "admin"
-      ? `SELECT * FROM generations WHERE deleted_at IS NULL ORDER BY created_at DESC LIMIT ${normalizedLimit}`
-      : `SELECT * FROM generations WHERE user_id = ? AND deleted_at IS NULL ORDER BY created_at DESC LIMIT ${normalizedLimit}`;
+      ? `SELECT * FROM generations WHERE deleted_at IS NULL ORDER BY created_at DESC LIMIT ${normalizedLimit} OFFSET ${normalizedOffset}`
+      : `SELECT * FROM generations WHERE user_id = ? AND deleted_at IS NULL ORDER BY created_at DESC LIMIT ${normalizedLimit} OFFSET ${normalizedOffset}`;
   const params = user.role === "admin" ? [] : [user.id];
   const [rows] = await getPool().execute(sql, params);
   return rows.map(mapGeneration);

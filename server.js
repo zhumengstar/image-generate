@@ -1226,13 +1226,18 @@ async function routeApi(req, res, url) {
     const current = await getCurrentUser(req);
     ensureAuthenticated(current);
     const limit = Math.max(1, Math.min(200, Number.parseInt(url.searchParams.get("limit") || "80", 10) || 80));
-    const generations = (await store.listGenerationsForUser(current.user, limit)).map((generation) => ({
+    const offset = Math.max(0, Number.parseInt(url.searchParams.get("offset") || "0", 10) || 0);
+    const generations = (await store.listGenerationsForUser(current.user, limit, offset)).map((generation) => ({
       ...generation,
       usage: undefined,
       editContext: generation.usage?.editContext || null,
       imageUrl: `/api/images/${generation.id}/file`
     }));
-    return sendJson(res, 200, { generations });
+    return sendJson(res, 200, {
+      generations,
+      hasMore: generations.length === limit,
+      nextOffset: offset + generations.length
+    });
   }
 
   const imageMatch = url.pathname.match(/^\/api\/images\/([^/]+)$/);

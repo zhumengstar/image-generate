@@ -37,6 +37,9 @@ const state = {
   promptVisible: 20,
   promptLoading: true,
   historyLoaded: false,
+  historyFullyLoaded: false,
+  historyNextOffset: 0,
+  historyLoading: false,
   restoreWorksOnViewerClose: false,
   restorePreviewOnViewerClose: null,
   editor: {
@@ -62,7 +65,8 @@ const state = {
 
 const MAX_EDITOR_IMAGES = 4;
 const MAX_HOME_REFERENCES = 1;
-const WORKS_BATCH_ROWS = 2;
+const WORKS_BATCH_ROWS = 3;
+const HISTORY_PRELOAD_LIMIT = 12;
 
 const i18n = {
   zh: {
@@ -1326,35 +1330,52 @@ async function regenerateItem(item) {
   }
 }
 
-async function loadHistory({ limit = 80 } = {}) {
+function mapHistoryGeneration(generation) {
+  return {
+    id: generation.id,
+    prompt: generation.prompt,
+    images: [generation.imageUrl],
+    status: "done",
+    time: generation.createdAt,
+    model: generation.model,
+    isPublic: Boolean(generation.isPublic),
+    editContext: generation.editContext || null,
+    options: {
+      size: generation.size,
+      quality: generation.quality,
+      background: generation.background,
+      outputFormat: generation.outputFormat
+    }
+  };
+}
+
+function mergeHistoryItems(items, append = false) {
+  const merged = new Map();
+  const source = append ? [...state.history, ...items] : items;
+  source.forEach((item) => merged.set(String(item.id), item));
+  state.history = [...merged.values()].sort((a, b) => new Date(a.time || 0) - new Date(b.time || 0));
+}
+
+async function loadHistory({ limit = HISTORY_PRELOAD_LIMIT, offset = 0, append = false } = {}) {
   if (!state.user) {
     state.history = [];
     state.historyLoaded = true;
+    state.historyFullyLoaded = true;
+    state.historyNextOffset = 0;
     return;
   }
+  if (state.historyLoading) return;
+  state.historyLoading = true;
   try {
-    const data = await api(`/api/images/history?limit=${encodeURIComponent(limit)}`);
-    state.history = [...(data.generations || [])]
-      .reverse()
-      .map((generation) => ({
-        id: generation.id,
-        prompt: generation.prompt,
-        images: [generation.imageUrl],
-        status: "done",
-        time: generation.createdAt,
-        model: generation.model,
-        isPublic: Boolean(generation.isPublic),
-        editContext: generation.editContext || null,
-        options: {
-          size: generation.size,
-          quality: generation.quality,
-          background: generation.background,
-          outputFormat: generation.outputFormat
-        }
-      }));
+    const data = await api(`/api/images/history?limit=${encodeURIComponent(limit)}&offset=${encodeURIComponent(offset)}`);
+    const items = [...(data.generations || [])].reverse().map(mapHistoryGeneration);
+    mergeHistoryItems(items, append || offset > 0);
+    state.historyNextOffset = Number(data.nextOffset ?? state.history.length);
+    state.historyFullyLoaded = !data.hasMore || items.length < limit;
   } catch (error) {
     showToast(error.message, "ri-error-warning-line");
   } finally {
+    state.historyLoading = false;
     state.historyLoaded = true;
   }
 }
@@ -2427,24 +2448,37 @@ function openMyWorksModal() {
 async function loadMyWorks(forceReload = false) {
   const grid = $("#worksGrid", elements.modalLayer);
   if (!grid) return;
+  if (forceReload) {
+    state.history = [];
+    state.historyLoaded = false;
+    state.historyFullyLoaded = false;
+    state.historyNextOffset = 0;
+  }
   if (state.history.length && !forceReload) {
     renderWorksItems(grid);
   } else {
     grid.innerHTML = `<div class="empty-message">${text("loadingWorks")}</div>`;
   }
-  if (forceReload || !state.historyLoaded) {
-    await loadHistory({ limit: 80 });
+  if (forceReload || !state.history.length) {
+    await loadHistory({ limit: getWorksBatchSize(grid), offset: 0 });
     if (!$("#worksGrid", elements.modalLayer)) return;
   }
   renderWorksItems(grid);
 }
 
-function renderWorksItems(grid) {
-  const items = [...state.history]
+function worksItemsFromHistory() {
+  return [...state.history]
     .filter((item) => item.status === "done" && item.images?.[0])
     .sort((a, b) => new Date(b.time || 0) - new Date(a.time || 0));
+}
+
+function renderWorksItems(grid) {
+  const items = worksItemsFromHistory();
   if (!items.length) {
-    grid.innerHTML = `<div class="empty-message">${text("emptyWorks")}</div>`;
+    grid.innerHTML = state.historyFullyLoaded
+      ? `<div class="empty-message">${text("emptyWorks")}</div>`
+      : `<div class="works-sentinel"><span>${text("loadingWorks")}</span></div>`;
+    if (!state.historyFullyLoaded) observeWorksSentinel(grid);
     return;
   }
   grid._worksItems = items;
@@ -2482,12 +2516,15 @@ function renderWorksBatch(grid) {
   const batchSize = getWorksBatchSize(grid);
   const batch = items.slice(offset, offset + batchSize);
   $(".works-sentinel", grid)?.remove();
-  if (!batch.length) return;
+  if (!batch.length) {
+    if (!state.historyFullyLoaded) loadMoreWorks(grid);
+    return;
+  }
   requestAnimationFrame(() => {
     grid.insertAdjacentHTML("beforeend", batch.map(workCardHtml).join(""));
     const nextOffset = offset + batch.length;
     grid.dataset.worksOffset = String(nextOffset);
-    if (nextOffset < items.length) {
+    if (nextOffset < items.length || !state.historyFullyLoaded) {
       grid.insertAdjacentHTML("beforeend", `<div class="works-sentinel"><span>${text("loadingWorks")}</span></div>`);
       observeWorksSentinel(grid);
     }
@@ -2503,16 +2540,45 @@ function observeWorksSentinel(grid) {
   const sentinel = $(".works-sentinel", grid);
   if (!sentinel) return;
   if (!("IntersectionObserver" in window)) {
-    setTimeout(() => renderWorksBatch(grid), 80);
+    setTimeout(() => loadOrRenderMoreWorks(grid), 80);
     return;
   }
   grid._worksObserver?.disconnect();
   grid._worksObserver = new IntersectionObserver((entries) => {
     if (!entries.some((entry) => entry.isIntersecting)) return;
     grid._worksObserver?.disconnect();
-    renderWorksBatch(grid);
+    loadOrRenderMoreWorks(grid);
   }, { root: grid.closest(".modal"), rootMargin: "240px" });
   grid._worksObserver.observe(sentinel);
+}
+
+function loadOrRenderMoreWorks(grid) {
+  const items = grid._worksItems || [];
+  const offset = Number(grid.dataset.worksOffset || 0);
+  if (offset < items.length) {
+    renderWorksBatch(grid);
+    return;
+  }
+  if (!state.historyFullyLoaded) loadMoreWorks(grid);
+}
+
+async function loadMoreWorks(grid) {
+  if (!grid || grid.dataset.loadingMore === "1" || state.historyFullyLoaded) return;
+  grid.dataset.loadingMore = "1";
+  const previousCount = grid._worksItems?.length || 0;
+  try {
+    await loadHistory({
+      limit: getWorksBatchSize(grid),
+      offset: state.historyNextOffset || state.history.length,
+      append: true
+    });
+    if (!$("#worksGrid", elements.modalLayer)) return;
+    grid._worksItems = worksItemsFromHistory();
+    grid.dataset.worksOffset = String(previousCount);
+    renderWorksBatch(grid);
+  } finally {
+    if (grid) grid.dataset.loadingMore = "0";
+  }
 }
 
 function bindWorksGrid(grid) {
@@ -2749,6 +2815,8 @@ async function logout() {
   state.user = null;
   state.history = [];
   state.historyLoaded = true;
+  state.historyFullyLoaded = true;
+  state.historyNextOffset = 0;
   state.checkin = { checkedInToday: false, credit: state.settings?.checkinCredit || 1 };
   state.forceHero = true;
   state.showGenerationView = false;
