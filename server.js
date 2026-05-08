@@ -285,6 +285,33 @@ function choose(value, allowed, fallback) {
   return allowed.includes(value) ? value : fallback;
 }
 
+function usesChinese(value) {
+  return /[\u3400-\u9fff]/.test(String(value || ""));
+}
+
+function normalizeEditConsistency(value) {
+  return choose(String(value || "").toLowerCase(), ["low", "medium", "high"], "medium");
+}
+
+function editConsistencyPrompt(prompt, level) {
+  const zh = usesChinese(prompt);
+  const instructions = {
+    low: {
+      zh: "一致性要求：低。保留上传图片的主要主体、基本构图和核心视觉特征，可根据用户要求进行较自由的风格、背景或细节调整。",
+      en: "Consistency requirement: low. Preserve the main subject, basic composition, and core visual traits of the uploaded image while allowing freer changes to style, background, or details requested by the user."
+    },
+    medium: {
+      zh: "一致性要求：中。保持上传图片中主体身份、产品结构、人物姿态、构图、主要颜色和关键细节一致；只围绕用户明确描述的内容进行编辑，避免无关重绘。",
+      en: "Consistency requirement: medium. Keep the uploaded image's subject identity, product structure, pose, composition, main colors, and key details consistent. Edit only what the user explicitly requests and avoid unrelated repainting."
+    },
+    high: {
+      zh: "一致性要求：高。严格保持上传图片的主体身份、面部/产品细节、文字和标识、位置关系、透视、光照、材质、构图和未指定区域不变；只修改用户明确要求或标记的区域，不新增无关元素，不改变原图语义。",
+      en: "Consistency requirement: high. Strictly preserve the uploaded image's subject identity, face/product details, text and logos, spatial relationships, perspective, lighting, materials, composition, and all unspecified areas. Modify only the explicitly requested or marked area, add no unrelated elements, and do not change the original image semantics."
+    }
+  };
+  return instructions[level]?.[zh ? "zh" : "en"] || instructions.medium[zh ? "zh" : "en"];
+}
+
 function sanitizePositiveInt(value, fallback, max) {
   const parsed = Number.parseInt(value, 10);
   if (!Number.isFinite(parsed) || parsed < 1) return fallback;
@@ -1109,6 +1136,7 @@ async function routeApi(req, res, url) {
 
     const body = await readJsonBody(req);
     const prompt = cleanPrompt(body.prompt);
+    const editConsistency = normalizeEditConsistency(body.editConsistency);
     const imageData = String(body.imageData || "").trim();
     const maskData = String(body.maskData || "").trim();
     if (!imageData || (!imageData.startsWith("data:image/") && !/^https?:\/\//i.test(imageData))) {
@@ -1162,8 +1190,8 @@ async function routeApi(req, res, url) {
     const payload = {
       model: request.model,
       prompt: maskData
-        ? `${prompt}\nThe uploaded image contains a purple visual annotation. Only modify the purple boxed or purple painted area, keep all unmarked areas unchanged, and remove the purple annotation from the final image.`
-        : prompt,
+        ? `${prompt}\n${editConsistencyPrompt(prompt, editConsistency)}\nThe uploaded image contains a purple visual annotation. Only modify the purple boxed or purple painted area, keep all unmarked areas unchanged, and remove the purple annotation from the final image.`
+        : `${prompt}\n${editConsistencyPrompt(prompt, editConsistency)}`,
       n: 1,
       size: request.size,
       imageData,

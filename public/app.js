@@ -46,6 +46,7 @@ const state = {
     prompt: "",
     tool: "brush",
     color: "#7c3aed",
+    consistency: "medium",
     zoom: 1,
     history: [],
     pointerDown: false,
@@ -99,6 +100,10 @@ const i18n = {
     emptyWorks: "还没有生成记录",
     uploadEditImage: "上传或从作品中选择图片",
     uploadEditHint: "支持画笔、矩形选区和局部编辑描述",
+    editConsistency: "一致性",
+    consistencyLow: "低",
+    consistencyMedium: "中",
+    consistencyHigh: "高",
     copy: "复制提示词",
     use: "去生成",
     libraryBadge: "精选提示词库",
@@ -221,6 +226,10 @@ const i18n = {
     emptyWorks: "No generated images yet",
     uploadEditImage: "Upload or choose an image",
     uploadEditHint: "Brush, rectangle selection, and local edit prompts",
+    editConsistency: "Consistency",
+    consistencyLow: "Low",
+    consistencyMedium: "Medium",
+    consistencyHigh: "High",
     copy: "Copy prompt",
     use: "Generate",
     libraryBadge: "Curated Prompt Library",
@@ -465,6 +474,7 @@ const elements = {
   editorMaskCanvas: $("#editorMaskCanvas"),
   editorPromptForm: $("#editorPromptForm"),
   editorPromptInput: $("#editorPromptInput"),
+  editorConsistencyInput: $("#editorConsistencyInput"),
   editorPublicInput: $("#editorPublicInput"),
   editorZoomText: $("#editorZoomText"),
   editorColorInput: $("#editorColorInput")
@@ -1676,6 +1686,7 @@ async function submitImageEdit(event) {
           : prompt,
         imageData,
         maskData,
+        editConsistency: state.editor.consistency,
         isPublic: elements.editorPublicInput.checked
       })
     });
@@ -2535,6 +2546,9 @@ function bindGlobalEvents() {
   });
   elements.editorPromptInput.addEventListener("input", () => {
     state.editor.prompt = elements.editorPromptInput.value;
+  });
+  elements.editorConsistencyInput.addEventListener("change", () => {
+    state.editor.consistency = elements.editorConsistencyInput.value;
   });
   elements.editorPromptInput.addEventListener("paste", async (event) => {
     const files = pastedImageFiles(event, "edit-image");

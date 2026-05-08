@@ -2361,6 +2361,33 @@ a {
   color: rgba(255, 255, 255, 0.54);
 }
 
+.editor-consistency {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+  min-height: 42px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.68);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.editor-consistency select {
+  border: 0;
+  outline: 0;
+  color: #fff;
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
+}
+
+.editor-consistency option {
+  color: #111827;
+}
+
 .editor-public-toggle {
   flex: 0 0 auto;
   color: rgba(255, 255, 255, 0.58);
@@ -2603,6 +2630,10 @@ a {
     order: 5;
   }
 
+  .editor-consistency {
+    order: 4;
+  }
+
   .editor-zoom {
     left: 16px;
     bottom: 22px;
@@ -2749,6 +2780,12 @@ a {
   .editor-prompt-bar > input {
     flex-basis: calc(100% - 76px);
     font-size: 15px;
+  }
+
+  .editor-consistency {
+    min-height: 38px;
+    padding: 0 10px;
+    font-size: 11px;
   }
 
   .editor-prompt-bar button[type="submit"] {
