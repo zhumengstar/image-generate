@@ -3134,32 +3134,57 @@ a {
     gap: 8px;
     padding: 10px;
     width: calc(100vw - 28px);
+    bottom: max(72px, calc(env(safe-area-inset-bottom) + 14px));
   }
 
   .editor-public-toggle,
   .editor-consistency {
     min-height: 40px;
     padding: 0 7px;
-    font-size: 12px;
+    font-size: 11px;
   }
 
   .editor-public-toggle {
-    flex: 1 1 0;
+    flex: 1 1 calc(100% - 180px);
     min-width: 0;
+    max-width: calc(100% - 180px);
+    justify-content: center;
+    gap: 5px;
+  }
+
+  .editor-public-toggle > span:first-child {
+    min-width: 0;
+    font-size: clamp(9px, 2.6vw, 11px);
+    line-height: 1;
+    white-space: nowrap;
   }
 
   .editor-public-toggle .toggle-track {
-    flex: 0 0 34px;
+    flex: 0 0 28px;
+    width: 28px;
+    height: 17px;
+  }
+
+  .editor-public-toggle .toggle-track::after {
+    width: 13px;
+    height: 13px;
+  }
+
+  .editor-public-toggle input:checked + .toggle-track::after {
+    transform: translateX(11px);
   }
 
   .editor-consistency {
-    flex: 0 1 100px;
+    flex: 0 0 78px;
     min-width: 0;
+    justify-content: center;
   }
 
   .editor-consistency-trigger {
-    min-width: 40px;
-    padding: 0 6px 0 8px;
+    min-width: 34px;
+    height: 28px;
+    padding: 0 4px 0 7px;
+    font-size: 12px;
   }
 
   .editor-consistency-option {
@@ -3169,9 +3194,10 @@ a {
   }
 
   .editor-prompt-bar button[type="submit"] {
-    flex: 0 0 82px;
-    min-width: 82px;
+    flex: 0 0 78px;
+    min-width: 78px;
     height: 40px;
-    font-size: 14px;
+    font-size: 13px;
+    padding-inline: 8px;
   }
 }
