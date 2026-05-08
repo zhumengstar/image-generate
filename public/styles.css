@@ -427,7 +427,8 @@ a {
 
 .composer-resize-handle {
   position: absolute;
-  top: 4px;
+  top: auto;
+  bottom: 4px;
   left: 54px;
   right: 54px;
   height: 16px;
@@ -2947,7 +2948,8 @@ a {
   }
 
   .composer-resize-handle {
-    top: 3px;
+    top: auto;
+    bottom: 3px;
     left: 36px;
     right: 36px;
   }
