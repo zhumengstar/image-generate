@@ -58,6 +58,8 @@ const state = {
   }
 };
 
+const MAX_EDITOR_IMAGES = 4;
+
 const i18n = {
   zh: {
     brand: "Image Studio",
@@ -100,6 +102,11 @@ const i18n = {
     emptyWorks: "还没有生成记录",
     uploadEditImage: "上传或从作品中选择图片",
     uploadEditHint: "支持画笔、矩形选区和局部编辑描述",
+    primaryImage: "主图",
+    referenceImage: "参考图",
+    primaryImageHint: "编辑目标，最终只生成这张图",
+    referenceNotePlaceholder: "说明这张参考图需要参考的区域或特征",
+    makePrimary: "设为主图",
     editConsistency: "一致性",
     consistencyLow: "低",
     consistencyMedium: "中",
@@ -226,6 +233,11 @@ const i18n = {
     emptyWorks: "No generated images yet",
     uploadEditImage: "Upload or choose an image",
     uploadEditHint: "Brush, rectangle selection, and local edit prompts",
+    primaryImage: "Primary",
+    referenceImage: "Reference",
+    primaryImageHint: "Editing target. Only this image will be generated",
+    referenceNotePlaceholder: "Describe the area or feature to reference",
+    makePrimary: "Make primary",
     editConsistency: "Consistency",
     consistencyLow: "Low",
     consistencyMedium: "Medium",
@@ -472,6 +484,9 @@ const elements = {
   editorImageScaler: $("#editorImageScaler"),
   editorSourceImage: $("#editorSourceImage"),
   editorMaskCanvas: $("#editorMaskCanvas"),
+  editorReferenceNoteWrap: $("#editorReferenceNoteWrap"),
+  editorReferenceNoteInput: $("#editorReferenceNoteInput"),
+  editorImageRoleText: $("#editorImageRoleText"),
   editorPromptForm: $("#editorPromptForm"),
   editorPromptInput: $("#editorPromptInput"),
   editorConsistencyInput: $("#editorConsistencyInput"),
@@ -1345,6 +1360,9 @@ function openImageEditor(imageUrl = "", prompt = "") {
 function renderEditor() {
   if (!elements.editorView) return;
   const editorImages = state.editor.images || [];
+  normalizeEditorImages();
+  const activeImage = editorImages[state.editor.activeImageIndex];
+  const primaryIndex = getPrimaryEditorImageIndex();
   $$("[data-editor-tool]", elements.editorView).forEach((button) => {
     button.classList.toggle("active", button.dataset.editorTool === state.editor.tool);
   });
@@ -1367,10 +1385,28 @@ function renderEditor() {
   elements.editorImageFrame.classList.toggle("hidden", !editorImages.length);
   elements.editorZoomText.textContent = `${Math.round(state.editor.zoom * 100)}%`;
   elements.editorImageScaler.style.transform = `scale(${state.editor.zoom})`;
+  if (elements.editorReferenceNoteWrap) {
+    elements.editorReferenceNoteWrap.classList.toggle("hidden", !editorImages.length);
+    elements.editorReferenceNoteWrap.classList.toggle("reference-active", activeImage && !activeImage.isPrimary);
+  }
+  if (elements.editorImageRoleText) {
+    elements.editorImageRoleText.textContent = activeImage?.isPrimary
+      ? text("primaryImageHint")
+      : `${text("referenceImage")} ${Math.max(1, state.editor.activeImageIndex)}`;
+  }
+  if (elements.editorReferenceNoteInput) {
+    elements.editorReferenceNoteInput.classList.toggle("hidden", !activeImage || activeImage.isPrimary);
+    if (document.activeElement !== elements.editorReferenceNoteInput) {
+      elements.editorReferenceNoteInput.value = activeImage?.note || "";
+      elements.editorReferenceNoteInput.placeholder = text("referenceNotePlaceholder");
+    }
+  }
   if (elements.editorImageStrip) {
     elements.editorImageStrip.innerHTML = editorImages.map((image, index) => `
-      <button class="editor-image-thumb ${index === state.editor.activeImageIndex ? "active" : ""}" type="button" data-editor-image-index="${index}" aria-label="${escapeHtml(image.name || "编辑图片")}">
+      <button class="editor-image-thumb ${index === state.editor.activeImageIndex ? "active" : ""} ${image.isPrimary ? "primary" : "reference"}" type="button" data-editor-image-index="${index}" aria-label="${escapeHtml(image.name || "编辑图片")}">
         <img src="${escapeHtml(image.url)}" alt="${escapeHtml(image.name || "编辑图片")}">
+        <em>${image.isPrimary ? text("primaryImage") : `${text("referenceImage")} ${referenceDisplayIndex(index)}`}</em>
+        ${!image.isPrimary ? `<span class="editor-image-primary" data-editor-make-primary="${index}">${text("makePrimary")}</span>` : ""}
         <span class="editor-image-remove" data-editor-remove-image="${index}" aria-label="移除图片"><i class="ri-close-line"></i></span>
       </button>
     `).join("");
@@ -1386,13 +1422,50 @@ function renderEditor() {
         removeEditorImage(Number(button.dataset.editorRemoveImage));
       });
     });
+    $$("[data-editor-make-primary]", elements.editorImageStrip).forEach((button) => {
+      button.addEventListener("click", (event) => {
+        event.stopPropagation();
+        makeEditorImagePrimary(Number(button.dataset.editorMakePrimary));
+      });
+    });
   }
   if (state.editor.imageUrl && elements.editorSourceImage.getAttribute("src") !== state.editor.imageUrl) {
     elements.editorSourceImage.src = state.editor.imageUrl;
   }
 }
 
+function normalizeEditorImages() {
+  const images = state.editor.images || [];
+  if (!images.length) return;
+  let primarySeen = false;
+  images.forEach((image, index) => {
+    if (image.isPrimary && !primarySeen) {
+      primarySeen = true;
+    } else {
+      image.isPrimary = false;
+    }
+    image.history = image.history || [];
+    image.note = image.note || "";
+  });
+  if (!primarySeen) images[0].isPrimary = true;
+}
+
+function getPrimaryEditorImageIndex() {
+  normalizeEditorImages();
+  const index = state.editor.images.findIndex((image) => image.isPrimary);
+  return index >= 0 ? index : 0;
+}
+
+function getPrimaryEditorImage() {
+  return state.editor.images[getPrimaryEditorImageIndex()];
+}
+
+function referenceDisplayIndex(index) {
+  return state.editor.images.slice(0, index + 1).filter((image) => !image.isPrimary).length;
+}
+
 function syncActiveEditorImage() {
+  normalizeEditorImages();
   const image = state.editor.images[state.editor.activeImageIndex];
   state.editor.imageUrl = image?.url || "";
   state.editor.imageData = image?.data || "";
@@ -1412,6 +1485,8 @@ function setEditorImage(src, imageData = "", name = "编辑图片") {
     url: src,
     data: imageData || (src.startsWith("data:") ? src : ""),
     name,
+    isPrimary: true,
+    note: "",
     history: []
   }];
   state.editor.activeImageIndex = 0;
@@ -1421,22 +1496,27 @@ function setEditorImage(src, imageData = "", name = "编辑图片") {
 }
 
 function addEditorImages(images) {
-  const slots = Math.max(0, 3 - state.editor.images.length);
-  const nextImages = images.slice(0, slots).map((image) => ({
+  normalizeEditorImages();
+  const slots = Math.max(0, MAX_EDITOR_IMAGES - state.editor.images.length);
+  const hasPrimary = state.editor.images.some((image) => image.isPrimary);
+  const nextImages = images.slice(0, slots).map((image, index) => ({
     id: `edit_${Date.now()}_${Math.random().toString(36).slice(2)}`,
+    isPrimary: !hasPrimary && index === 0,
+    note: "",
     history: [],
     ...image
   }));
   if (!nextImages.length) {
-    showToast(state.lang === "zh" ? "最多上传 3 张图片" : "You can upload up to 3 images", "ri-image-line");
+    showToast(state.lang === "zh" ? "最多上传 4 张图片" : "You can upload up to 4 images", "ri-image-line");
     return;
   }
   state.editor.images.push(...nextImages);
-  if (!state.editor.imageUrl) state.editor.activeImageIndex = 0;
+  normalizeEditorImages();
+  if (!state.editor.imageUrl) state.editor.activeImageIndex = getPrimaryEditorImageIndex();
   syncActiveEditorImage();
   renderEditor();
   if (images.length > nextImages.length) {
-    showToast(state.lang === "zh" ? "最多上传 3 张图片" : "You can upload up to 3 images", "ri-image-line");
+    showToast(state.lang === "zh" ? "最多上传 4 张图片" : "You can upload up to 4 images", "ri-image-line");
   }
 }
 
@@ -1450,8 +1530,21 @@ function selectEditorImage(index) {
 
 function removeEditorImage(index) {
   if (index < 0 || index >= state.editor.images.length) return;
+  const removedPrimary = state.editor.images[index]?.isPrimary;
   state.editor.images.splice(index, 1);
+  if (removedPrimary && state.editor.images.length) state.editor.images[0].isPrimary = true;
   state.editor.activeImageIndex = Math.min(state.editor.activeImageIndex, Math.max(0, state.editor.images.length - 1));
+  syncActiveEditorImage();
+  resetEditorInteraction();
+  renderEditor();
+}
+
+function makeEditorImagePrimary(index) {
+  if (index < 0 || index >= state.editor.images.length) return;
+  state.editor.images.forEach((image, imageIndex) => {
+    image.isPrimary = imageIndex === index;
+  });
+  state.editor.activeImageIndex = index;
   syncActiveEditorImage();
   resetEditorInteraction();
   renderEditor();
@@ -1642,20 +1735,42 @@ function loadImageElement(src) {
   });
 }
 
-async function editorAnnotatedImageData(originalData) {
-  const maskCanvas = elements.editorMaskCanvas;
-  if (!canvasHasMarks(maskCanvas)) return { imageData: originalData, maskData: "" };
+async function dataUrlHasMarks(dataUrl) {
+  if (!dataUrl?.startsWith("data:image/")) return false;
+  const maskImage = await loadImageElement(dataUrl);
+  const canvas = document.createElement("canvas");
+  canvas.width = maskImage.naturalWidth || maskImage.width;
+  canvas.height = maskImage.naturalHeight || maskImage.height;
+  const ctx = canvas.getContext("2d");
+  ctx.drawImage(maskImage, 0, 0);
+  return canvasHasMarks(canvas);
+}
+
+async function composeAnnotatedImageData(originalData, maskData) {
+  if (!maskData?.startsWith("data:image/") || !(await dataUrlHasMarks(maskData))) {
+    return { imageData: originalData, maskData: "" };
+  }
   const originalImage = await loadImageElement(originalData);
   const canvas = document.createElement("canvas");
   canvas.width = originalImage.naturalWidth || originalImage.width;
   canvas.height = originalImage.naturalHeight || originalImage.height;
   const ctx = canvas.getContext("2d");
   ctx.drawImage(originalImage, 0, 0, canvas.width, canvas.height);
-  ctx.drawImage(maskCanvas, 0, 0, canvas.width, canvas.height);
+  const maskImage = await loadImageElement(maskData);
+  ctx.drawImage(maskImage, 0, 0, canvas.width, canvas.height);
   return {
     imageData: canvas.toDataURL("image/png"),
-    maskData: maskCanvas.toDataURL("image/png")
+    maskData
   };
+}
+
+async function editorAnnotatedImageData(originalData, image) {
+  const activeImage = image || state.editor.images[state.editor.activeImageIndex];
+  let maskData = activeImage?.history?.[activeImage.history.length - 1] || "";
+  if (activeImage && activeImage === state.editor.images[state.editor.activeImageIndex]) {
+    maskData = elements.editorMaskCanvas?.toDataURL("image/png") || maskData;
+  }
+  return composeAnnotatedImageData(originalData, maskData);
 }
 
 function canvasHasMarks(canvas) {
@@ -1679,8 +1794,9 @@ async function submitImageEdit(event) {
     return;
   }
   const prompt = elements.editorPromptInput.value.trim();
-  if (!state.editor.imageUrl) {
-    showToast(state.lang === "zh" ? "请先上传或选择一张图片" : "Choose an image first", "ri-image-add-line");
+  const primaryEditorImage = getPrimaryEditorImage();
+  if (!primaryEditorImage?.url) {
+    showToast(state.lang === "zh" ? "请先上传或设置一张主图" : "Choose or set a primary image first", "ri-image-add-line");
     return;
   }
   if (prompt.length < 3) {
@@ -1694,16 +1810,28 @@ async function submitImageEdit(event) {
   if (buttonLabel) buttonLabel.textContent = text("editing");
   state.editor.prompt = prompt;
   try {
-    const originalData = state.editor.imageData || await imageReferenceForEdit(state.editor.imageUrl);
-    const { imageData, maskData } = await editorAnnotatedImageData(originalData);
+    const primaryOriginalData = primaryEditorImage.data || await imageReferenceForEdit(primaryEditorImage.url);
+    const primaryAnnotated = await editorAnnotatedImageData(primaryOriginalData, primaryEditorImage);
+    const referenceImages = await Promise.all(state.editor.images
+      .filter((image) => image && !image.isPrimary)
+      .map(async (image) => {
+        const originalData = image.data || await imageReferenceForEdit(image.url);
+        const annotated = await editorAnnotatedImageData(originalData, image);
+        return {
+          imageData: originalData,
+          annotatedImageData: annotated.maskData ? annotated.imageData : "",
+          note: image.note || ""
+        };
+      }));
     const data = await api("/api/images/edit", {
       method: "POST",
       body: JSON.stringify({
-        prompt: maskData
-          ? `${prompt}。只修改图片中紫色标记框或紫色笔刷覆盖的区域，其他区域保持不变，最终结果不要保留紫色标记。`
-          : prompt,
-        imageData,
-        maskData,
+        prompt,
+        primaryImage: {
+          imageData: primaryAnnotated.imageData,
+          maskData: primaryAnnotated.maskData
+        },
+        referenceImages,
         editConsistency: state.editor.consistency,
         isPublic: elements.editorPublicInput.checked
       })
@@ -2558,6 +2686,10 @@ function bindGlobalEvents() {
   });
   elements.editorPromptInput.addEventListener("input", () => {
     state.editor.prompt = elements.editorPromptInput.value;
+  });
+  elements.editorReferenceNoteInput?.addEventListener("input", () => {
+    const activeImage = state.editor.images[state.editor.activeImageIndex];
+    if (activeImage && !activeImage.isPrimary) activeImage.note = elements.editorReferenceNoteInput.value;
   });
   elements.editorConsistencyInput.addEventListener("change", () => {
     state.editor.consistency = elements.editorConsistencyInput.value;

@@ -2214,6 +2214,10 @@ a {
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.22);
 }
 
+.editor-image-thumb.primary {
+  border-color: rgba(124, 58, 237, 0.72);
+}
+
 .editor-image-thumb.active {
   border-color: #a78bfa;
   box-shadow: 0 0 0 4px rgba(167, 139, 250, 0.18), 0 16px 36px rgba(0, 0, 0, 0.28);
@@ -2224,6 +2228,37 @@ a {
   height: 100%;
   border-radius: 14px;
   object-fit: cover;
+}
+
+.editor-image-thumb em {
+  position: absolute;
+  left: 6px;
+  bottom: 6px;
+  max-width: calc(100% - 12px);
+  padding: 3px 6px;
+  border-radius: 999px;
+  background: rgba(8, 8, 14, 0.78);
+  color: #fff;
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 800;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.editor-image-primary {
+  position: absolute;
+  left: 50%;
+  top: -12px;
+  transform: translateX(-50%);
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #7c3aed, #db2777);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 800;
+  white-space: nowrap;
+  box-shadow: 0 8px 18px rgba(124, 58, 237, 0.26);
 }
 
 .editor-image-remove {
@@ -2240,6 +2275,39 @@ a {
   font-size: 16px;
   box-shadow: 0 8px 20px rgba(15, 23, 42, 0.3);
   cursor: pointer;
+}
+
+.editor-reference-note {
+  width: min(760px, 76vw);
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 16px;
+  background: rgba(8, 8, 14, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.editor-reference-note > span {
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.editor-reference-note input {
+  width: 100%;
+  height: 38px;
+  border: 0;
+  outline: 0;
+  border-radius: 12px;
+  padding: 0 12px;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.09);
+}
+
+.editor-reference-note input::placeholder {
+  color: rgba(255, 255, 255, 0.48);
 }
 
 .editor-image-scaler {
@@ -2849,6 +2917,12 @@ a {
   .editor-image-scaler img,
   .editor-image-frame {
     max-width: calc(100vw - 42px);
+  }
+
+  .editor-reference-note {
+    width: calc(100vw - 42px);
+    grid-template-columns: 1fr;
+    gap: 8px;
   }
 
   .editor-prompt-bar > input {

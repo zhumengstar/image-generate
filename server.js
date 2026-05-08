@@ -293,6 +293,23 @@ function normalizeEditConsistency(value) {
   return choose(String(value || "").toLowerCase(), ["low", "medium", "high"], "medium");
 }
 
+function isValidImageSource(value) {
+  return Boolean(value && (String(value).startsWith("data:image/") || /^https?:\/\//i.test(String(value))));
+}
+
+function normalizeReferenceImages(value) {
+  if (!Array.isArray(value)) return [];
+  return value.slice(0, 3).map((item, index) => {
+    const imageData = String(item?.annotatedImageData || item?.imageData || "").trim();
+    if (!isValidImageSource(imageData)) return null;
+    return {
+      imageData,
+      note: String(item?.note || "").trim().slice(0, 600),
+      index: index + 1
+    };
+  }).filter(Boolean);
+}
+
 function editConsistencyPrompt(prompt, level) {
   const zh = usesChinese(prompt);
   const instructions = {
@@ -310,6 +327,27 @@ function editConsistencyPrompt(prompt, level) {
     }
   };
   return instructions[level]?.[zh ? "zh" : "en"] || instructions.medium[zh ? "zh" : "en"];
+}
+
+function editReferencePrompt(prompt, references) {
+  if (!references.length) return "";
+  const zh = usesChinese(prompt) || references.some((reference) => usesChinese(reference.note));
+  if (zh) {
+    const notes = references.map((reference) => `参考图${reference.index}说明：${reference.note || "请参考图中主体、风格、材质、构图或被紫色标记的区域。"}`).join("\n");
+    return [
+      "多图编辑规则：第一张图片是主图，也是唯一编辑目标。后续图片均为参考图，不要直接修改、拼接、复制或输出参考图。",
+      "如果参考图中有紫色标记，紫色标记表示需要参考的区域或特征，不是需要被编辑的区域。",
+      "请根据用户要求和参考图说明，将参考特征应用到主图中，最终只输出修改后的主图。",
+      notes
+    ].join("\n");
+  }
+  const notes = references.map((reference) => `Reference image ${reference.index}: ${reference.note || "Use the subject, style, material, composition, or purple-marked area as visual reference."}`).join("\n");
+  return [
+    "Multi-image edit rules: the first image is the primary image and the only editing target. All following images are references; do not directly edit, collage, copy, or output the reference images.",
+    "If a reference image contains purple marks, those marks indicate the region or feature to reference, not an edit target.",
+    "Apply the requested reference features to the primary image and output only the edited primary image.",
+    notes
+  ].join("\n");
 }
 
 function sanitizePositiveInt(value, fallback, max) {
@@ -606,9 +644,12 @@ async function callOpenAIImageEdits(settings, payload) {
   form.set("n", String(payload.n || 1));
   form.set("size", payload.size || "auto");
   form.set("response_format", "url");
-  form.set("image", await imageSourceToBlob(payload.imageData), "image.png");
+  form.append("image", await imageSourceToBlob(payload.imageData), "primary.png");
+  for (const [index, reference] of (payload.referenceImages || []).entries()) {
+    form.append("image", await imageSourceToBlob(reference.imageData), `reference-${index + 1}.png`);
+  }
   if (payload.maskData?.startsWith("data:image/")) {
-    form.set("mask", dataUrlToBlob(payload.maskData), "mask.png");
+    form.set("mask", dataUrlToBlob(payload.maskData), "primary-mask.png");
   }
 
   const response = await fetch(getOpenAIEditEndpoint(settings), {
@@ -1137,9 +1178,13 @@ async function routeApi(req, res, url) {
     const body = await readJsonBody(req);
     const prompt = cleanPrompt(body.prompt);
     const editConsistency = normalizeEditConsistency(body.editConsistency);
-    const imageData = String(body.imageData || "").trim();
-    const maskData = String(body.maskData || "").trim();
-    if (!imageData || (!imageData.startsWith("data:image/") && !/^https?:\/\//i.test(imageData))) {
+    const primaryImage = body.primaryImage && typeof body.primaryImage === "object"
+      ? body.primaryImage
+      : { imageData: body.imageData, maskData: body.maskData };
+    const imageData = String(primaryImage.imageData || "").trim();
+    const maskData = String(primaryImage.maskData || "").trim();
+    const referenceImages = normalizeReferenceImages(body.referenceImages);
+    if (!isValidImageSource(imageData)) {
       throw httpError("Please provide an editable image", 400);
     }
 
@@ -1190,12 +1235,13 @@ async function routeApi(req, res, url) {
     const payload = {
       model: request.model,
       prompt: maskData
-        ? `${prompt}\n${editConsistencyPrompt(prompt, editConsistency)}\nThe uploaded image contains a purple visual annotation. Only modify the purple boxed or purple painted area, keep all unmarked areas unchanged, and remove the purple annotation from the final image.`
-        : `${prompt}\n${editConsistencyPrompt(prompt, editConsistency)}`,
+        ? `${prompt}\n${editConsistencyPrompt(prompt, editConsistency)}\n${editReferencePrompt(prompt, referenceImages)}\nThe first uploaded image is the primary image and contains a purple visual annotation. Only modify the purple boxed or purple painted area in the primary image, keep all unmarked primary-image areas unchanged, and remove the purple annotation from the final image.`
+        : `${prompt}\n${editConsistencyPrompt(prompt, editConsistency)}\n${editReferencePrompt(prompt, referenceImages)}`,
       n: 1,
       size: request.size,
       imageData,
-      maskData
+      maskData,
+      referenceImages
     };
 
     try {
