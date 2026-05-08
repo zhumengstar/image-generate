@@ -51,7 +51,8 @@ const state = {
     history: [],
     pointerDown: false,
     startPoint: null,
-    snapshot: null
+    snapshot: null,
+    beforeGenerationSnapshot: null
   },
   stats: {
     todayGenerated: 4200
@@ -1605,6 +1606,38 @@ function resetEditorInteraction() {
   state.editor.snapshot = null;
 }
 
+function cloneEditorImages(images = []) {
+  return JSON.parse(JSON.stringify(images || []));
+}
+
+function captureEditorState() {
+  const activeImage = state.editor.images[state.editor.activeImageIndex];
+  return {
+    images: cloneEditorImages(state.editor.images),
+    activeImageId: activeImage?.id || "",
+    prompt: state.editor.prompt,
+    consistency: state.editor.consistency,
+    zoom: state.editor.zoom
+  };
+}
+
+function restoreEditorState(snapshot) {
+  if (!snapshot?.images?.length) return false;
+  state.editor.images = cloneEditorImages(snapshot.images);
+  const activeIndex = state.editor.images.findIndex((image) => image.id === snapshot.activeImageId);
+  state.editor.activeImageIndex = activeIndex >= 0 ? activeIndex : 0;
+  state.editor.prompt = snapshot.prompt || "";
+  state.editor.consistency = snapshot.consistency || "high";
+  state.editor.zoom = snapshot.zoom || 1;
+  state.editor.beforeGenerationSnapshot = null;
+  syncActiveEditorImage();
+  state.editor.pointerDown = false;
+  state.editor.startPoint = null;
+  state.editor.snapshot = null;
+  renderEditor();
+  return true;
+}
+
 function setEditorImage(src, imageData = "", name = "编辑图片") {
   state.editor.images = [{
     id: `edit_${Date.now()}_${Math.random().toString(36).slice(2)}`,
@@ -1616,6 +1649,7 @@ function setEditorImage(src, imageData = "", name = "编辑图片") {
     history: []
   }];
   state.editor.activeImageIndex = 0;
+  state.editor.beforeGenerationSnapshot = null;
   syncActiveEditorImage();
   resetEditorInteraction();
   renderEditor();
@@ -1787,6 +1821,7 @@ function editorPointerUp() {
 }
 
 function undoEditorMark() {
+  if (restoreEditorState(state.editor.beforeGenerationSnapshot)) return;
   const activeImage = state.editor.images[state.editor.activeImageIndex];
   const history = activeImage?.history || [];
   if (history.length <= 1) return;
@@ -1937,6 +1972,7 @@ async function submitImageEdit(event) {
   button.disabled = true;
   if (buttonLabel) buttonLabel.textContent = text("editing");
   state.editor.prompt = prompt;
+  const beforeGenerationSnapshot = captureEditorState();
   try {
     const primaryOriginalData = primaryEditorImage.data || await imageReferenceForEdit(primaryEditorImage.url);
     const primaryAnnotated = await editorAnnotatedImageData(primaryOriginalData, primaryEditorImage);
@@ -1983,6 +2019,7 @@ async function submitImageEdit(event) {
       editContext
     });
     setEditorImage(generation.imageUrl);
+    state.editor.beforeGenerationSnapshot = beforeGenerationSnapshot;
     if (generation.isPublic) await loadPublicGallery();
     renderAll();
     showToast(state.lang === "zh" ? "编辑完成" : "Edit created", "ri-magic-line");
