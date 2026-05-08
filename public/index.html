@@ -174,11 +174,12 @@
               </label>
               <label class="editor-consistency">
                 <span data-i18n="editConsistency">一致性</span>
-                <select id="editorConsistencyInput">
-                  <option value="low" data-i18n="consistencyLow">低</option>
-                  <option value="medium" selected data-i18n="consistencyMedium">中</option>
-                  <option value="high" data-i18n="consistencyHigh">高</option>
-                </select>
+                <input id="editorConsistencyInput" type="hidden" value="medium">
+                <span class="editor-consistency-options" role="group" aria-label="编辑一致性">
+                  <button class="editor-consistency-option" type="button" data-editor-consistency-value="low" data-i18n="consistencyLow">低</button>
+                  <button class="editor-consistency-option active" type="button" data-editor-consistency-value="medium" data-i18n="consistencyMedium">中</button>
+                  <button class="editor-consistency-option" type="button" data-editor-consistency-value="high" data-i18n="consistencyHigh">高</button>
+                </span>
               </label>
               <button type="submit">
                 <span data-i18n="editImage">编辑</span>

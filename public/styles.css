@@ -2377,19 +2377,41 @@ a {
   white-space: nowrap;
 }
 
-.editor-consistency select {
-  border: 0;
-  outline: 0;
-  color: #fff;
-  background: transparent;
-  font: inherit;
-  font-size: 14px;
-  font-weight: 800;
-  cursor: pointer;
+.editor-consistency-options {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
 }
 
-.editor-consistency option {
-  color: #111827;
+.editor-consistency-option {
+  min-width: 28px;
+  height: 28px;
+  padding: 0 9px;
+  border-radius: 999px;
+  color: rgba(255, 255, 255, 0.62);
+  background: transparent;
+  font-size: 13px;
+  font-weight: 800;
+  box-shadow: none;
+  white-space: nowrap;
+}
+
+.editor-consistency-option.active {
+  color: #fff;
+  background: linear-gradient(135deg, rgba(124, 58, 237, 0.92), rgba(219, 39, 119, 0.92));
+  box-shadow: 0 8px 18px rgba(124, 58, 237, 0.28);
+}
+
+.editor-consistency-option:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.editor-consistency-option.active:hover {
+  background: linear-gradient(135deg, rgba(124, 58, 237, 0.96), rgba(219, 39, 119, 0.96));
 }
 
 .editor-public-toggle {
@@ -2794,6 +2816,13 @@ a {
   .editor-consistency {
     min-height: 48px;
     padding: 0 10px;
+    font-size: 12px;
+  }
+
+  .editor-consistency-option {
+    min-width: 24px;
+    height: 24px;
+    padding: 0 7px;
     font-size: 12px;
   }
 

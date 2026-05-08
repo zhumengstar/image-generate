@@ -1344,6 +1344,10 @@ function renderEditor() {
   if (document.activeElement !== elements.editorPromptInput) {
     elements.editorPromptInput.value = state.editor.prompt || "";
   }
+  elements.editorConsistencyInput.value = state.editor.consistency;
+  $$("[data-editor-consistency-value]", elements.editorView).forEach((button) => {
+    button.classList.toggle("active", button.dataset.editorConsistencyValue === state.editor.consistency);
+  });
   elements.editorColorInput.value = state.editor.color;
   elements.editorUploadCard.classList.toggle("hidden", Boolean(editorImages.length));
   elements.editorImageFrame.classList.toggle("hidden", !editorImages.length);
@@ -2549,6 +2553,13 @@ function bindGlobalEvents() {
   });
   elements.editorConsistencyInput.addEventListener("change", () => {
     state.editor.consistency = elements.editorConsistencyInput.value;
+  });
+  $$("[data-editor-consistency-value]", elements.editorView).forEach((button) => {
+    button.addEventListener("click", () => {
+      state.editor.consistency = button.dataset.editorConsistencyValue;
+      elements.editorConsistencyInput.value = state.editor.consistency;
+      renderEditor();
+    });
   });
   elements.editorPromptInput.addEventListener("paste", async (event) => {
     const files = pastedImageFiles(event, "edit-image");
