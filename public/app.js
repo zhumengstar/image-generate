@@ -933,7 +933,7 @@ function syncComposers(sourceForm) {
     const polishButton = $(".polish-button", form);
     if (polishButton) {
       const label = state.polishing ? text("polishing") : text("polish");
-      polishButton.disabled = state.generating || state.polishing;
+      polishButton.disabled = state.polishing || !state.settings?.hasApiKey;
       polishButton.title = label;
       polishButton.setAttribute("aria-label", label);
       $("span", polishButton).textContent = label;
@@ -1101,7 +1101,7 @@ async function submitGeneration(form) {
 async function polishPrompt(form) {
   const textarea = $(".prompt-box", form);
   const prompt = textarea.value.trim();
-  if (!prompt || state.polishing || state.generating) return;
+  if (!prompt || state.polishing) return;
   if (!state.user) {
     state.draftPrompt = prompt;
     openAuthModal("login");
