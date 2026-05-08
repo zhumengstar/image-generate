@@ -16,6 +16,7 @@ const state = {
   funIndex: 0,
   funTimer: null,
   draftPrompt: "",
+  promptBoxHeight: null,
   generationOptions: {
     size: "auto",
     quality: "auto",
@@ -878,9 +879,18 @@ function createComposer(sticky) {
   const publicInput = $(".public-input", form);
   const polishButton = $(".polish-button", form);
   const advanced = $(".advanced-options", form);
+  const resizeHandle = $(".composer-resize-handle", form);
 
   form.dataset.sticky = sticky ? "1" : "0";
   autoSizePromptBox(textarea);
+  resizeHandle?.addEventListener("pointerdown", (event) => startPromptResize(event, form));
+  resizeHandle?.addEventListener("keydown", (event) => {
+    if (!["ArrowUp", "ArrowDown"].includes(event.key)) return;
+    event.preventDefault();
+    const delta = event.key === "ArrowUp" ? 12 : -12;
+    state.promptBoxHeight = clampPromptHeight((state.promptBoxHeight || textarea.offsetHeight) + delta);
+    syncComposers();
+  });
   textarea.addEventListener("input", () => {
     state.draftPrompt = textarea.value;
     autoSizePromptBox(textarea);
@@ -986,11 +996,45 @@ function syncComposers(sourceForm) {
 
 function autoSizePromptBox(textarea) {
   if (!textarea) return;
-  const maxHeight = 132;
+  const maxHeight = 168;
   const minHeight = 46;
   textarea.style.height = "auto";
-  textarea.style.height = `${Math.max(minHeight, Math.min(maxHeight, textarea.scrollHeight))}px`;
+  const nextHeight = state.promptBoxHeight == null
+    ? Math.max(minHeight, Math.min(maxHeight, textarea.scrollHeight))
+    : clampPromptHeight(state.promptBoxHeight);
+  textarea.style.height = `${nextHeight}px`;
   textarea.style.overflowY = "auto";
+}
+
+function clampPromptHeight(value) {
+  return Math.max(46, Math.min(168, Number(value) || 46));
+}
+
+function startPromptResize(event, form) {
+  const textarea = $(".prompt-box", form);
+  if (!textarea) return;
+  event.preventDefault();
+  const startY = event.clientY;
+  const startHeight = textarea.offsetHeight || state.promptBoxHeight || 46;
+  const handle = event.currentTarget;
+  handle.setPointerCapture?.(event.pointerId);
+  document.body.classList.add("is-resizing-composer");
+
+  const move = (moveEvent) => {
+    state.promptBoxHeight = clampPromptHeight(startHeight + startY - moveEvent.clientY);
+    syncComposers();
+  };
+  const stop = () => {
+    handle.releasePointerCapture?.(event.pointerId);
+    document.removeEventListener("pointermove", move);
+    document.removeEventListener("pointerup", stop);
+    document.removeEventListener("pointercancel", stop);
+    document.body.classList.remove("is-resizing-composer");
+  };
+
+  document.addEventListener("pointermove", move);
+  document.addEventListener("pointerup", stop);
+  document.addEventListener("pointercancel", stop);
 }
 
 function renderReferences(row) {

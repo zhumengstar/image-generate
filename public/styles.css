@@ -414,6 +414,7 @@ a {
 }
 
 .composer {
+  position: relative;
   width: 100%;
   background: #fcfcfc;
   border: 1px solid rgba(226, 232, 240, 0.9);
@@ -422,6 +423,43 @@ a {
   padding: 24px;
   text-align: left;
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.composer-resize-handle {
+  position: absolute;
+  top: 4px;
+  left: 54px;
+  right: 54px;
+  height: 16px;
+  border: 0;
+  background: transparent;
+  cursor: ns-resize;
+  touch-action: none;
+}
+
+.composer-resize-handle::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 7px;
+  height: 3px;
+  border-radius: 999px;
+  background: rgba(124, 58, 237, 0.12);
+  transition: background 0.2s ease, box-shadow 0.2s ease;
+}
+
+.composer-resize-handle:hover::before,
+.composer-resize-handle:focus-visible::before,
+.is-resizing-composer .composer-resize-handle::before {
+  background: linear-gradient(90deg, rgba(124, 58, 237, 0.14), rgba(236, 72, 153, 0.18), rgba(249, 115, 22, 0.14));
+  box-shadow: 0 0 0 4px rgba(124, 58, 237, 0.05);
+}
+
+.is-resizing-composer,
+.is-resizing-composer * {
+  cursor: ns-resize !important;
+  user-select: none;
 }
 
 .composer:focus-within {
@@ -500,8 +538,8 @@ a {
 .prompt-box {
   width: 100%;
   min-height: 46px;
-  max-height: 132px;
-  resize: vertical;
+  max-height: 168px;
+  resize: none;
   border: 0;
   outline: 0;
   background: transparent;
@@ -2921,6 +2959,12 @@ a {
   .composer {
     border-radius: 28px;
     padding: 18px;
+  }
+
+  .composer-resize-handle {
+    top: 3px;
+    left: 36px;
+    right: 36px;
   }
 
   .composer-head {
