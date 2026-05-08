@@ -604,6 +604,10 @@ function renderSettings() {
             <label>Image API Key<input id="apiKeyInput" type="password" placeholder="${escapeHtml(settings.apiKeyMask ? `当前：${settings.apiKeyMask}` : "粘贴图片生成接口 Key")}"></label>
             <label>Image API 地址<input id="apiBaseUrlInput" value="${escapeHtml(settings.apiBaseUrl || "")}" placeholder="https://api.example.com 或 https://api.example.com/v1"></label>
             <label>Image 模型<input id="modelInput" value="${escapeHtml(settings.model || "GPT-IMAGE-2")}" placeholder="gpt-image-2"></label>
+            <div class="settings-test-row">
+              <button id="testImageApiBtn" class="secondary" type="button"><i class="ri-pulse-line"></i>测试 Image 接口</button>
+              <span id="imageApiTestResult">会发起一次最小生图请求，不会保存到图库。</span>
+            </div>
           </div>
 
           <div class="settings-section-head">
@@ -617,6 +621,10 @@ function renderSettings() {
             <label>大模型 API Key<input id="promptPolishApiKeyInput" type="password" placeholder="${escapeHtml(settings.promptPolishKeyMask ? `当前：${settings.promptPolishKeyMask}` : "粘贴 AI 润色接口 Key")}"></label>
             <label>大模型 API 地址<input id="promptPolishBaseUrlInput" value="${escapeHtml(settings.promptPolishBaseUrl || "")}" placeholder="https://cliproxy.example.com 或 https://api.example.com/v1"></label>
             <label>大模型模型<input id="promptPolishModelInput" value="${escapeHtml(settings.promptPolishModel || "gpt-5.5")}" placeholder="gpt-5.5"></label>
+            <div class="settings-test-row">
+              <button id="testPolishApiBtn" class="secondary" type="button"><i class="ri-pulse-line"></i>测试润色接口</button>
+              <span id="polishApiTestResult">会发起一次提示词润色请求。</span>
+            </div>
           </div>
 
           <div class="settings-group compact-fields">
@@ -679,6 +687,8 @@ function renderSettings() {
   $("#settingsForm").addEventListener("submit", saveSettings);
   $("#clearKeyBtn").addEventListener("click", clearKey);
   $("#clearPolishKeyBtn").addEventListener("click", clearPolishKey);
+  $("#testImageApiBtn").addEventListener("click", () => testAdminApi("image"));
+  $("#testPolishApiBtn").addEventListener("click", () => testAdminApi("polish"));
 }
 
 async function loadPanel() {
@@ -848,6 +858,52 @@ async function saveSettings(event) {
     renderSettings();
   } catch (error) {
     toast(error.message);
+  }
+}
+
+function readSettingsForm() {
+  return {
+    openaiApiKey: $("#apiKeyInput").value.trim(),
+    apiBaseUrl: $("#apiBaseUrlInput").value.trim(),
+    model: $("#modelInput").value.trim(),
+    promptPolishApiKey: $("#promptPolishApiKeyInput").value.trim(),
+    promptPolishBaseUrl: $("#promptPolishBaseUrlInput").value.trim(),
+    promptPolishModel: $("#promptPolishModelInput").value.trim(),
+    defaultCredits: Number($("#defaultCreditsInput").value || 0),
+    generationCreditCost: Number($("#generationCreditCostInput").value || 0),
+    maxImagesPerRequest: Number($("#maxImagesInput").value || 1),
+    allowRegistration: $("#allowRegistrationInput").checked,
+    requireApproval: $("#requireApprovalInput").checked
+  };
+}
+
+async function testAdminApi(kind) {
+  const isImage = kind === "image";
+  const button = isImage ? $("#testImageApiBtn") : $("#testPolishApiBtn");
+  const result = isImage ? $("#imageApiTestResult") : $("#polishApiTestResult");
+  const originalText = button.innerHTML;
+  button.disabled = true;
+  button.innerHTML = `<i class="ri-loader-4-line"></i>测试中...`;
+  result.className = "testing";
+  result.textContent = isImage ? "正在测试 Image 接口..." : "正在测试润色接口...";
+  try {
+    const data = await api(isImage ? "/api/admin/settings/test-image" : "/api/admin/settings/test-polish", {
+      method: "POST",
+      body: JSON.stringify(readSettingsForm())
+    });
+    const seconds = data.elapsedMs ? `${(data.elapsedMs / 1000).toFixed(1)}s` : "";
+    result.className = "success";
+    result.textContent = isImage
+      ? `Image 接口测试通过 ${seconds}`
+      : `润色接口测试通过 ${seconds}`;
+    toast(result.textContent);
+  } catch (error) {
+    result.className = "error";
+    result.textContent = `测试失败：${error.message}`;
+    toast(error.message);
+  } finally {
+    button.disabled = false;
+    button.innerHTML = originalText;
   }
 }
 

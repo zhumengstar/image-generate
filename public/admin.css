@@ -312,6 +312,45 @@ a {
   grid-column: 1 / -1;
 }
 
+.settings-test-row {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding-top: 2px;
+}
+
+.settings-test-row button {
+  min-height: 38px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.settings-test-row button:disabled {
+  opacity: 0.66;
+  cursor: wait;
+}
+
+.settings-test-row span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.settings-test-row span.success {
+  color: #027a48;
+}
+
+.settings-test-row span.error {
+  color: #b42318;
+}
+
+.settings-test-row span.testing {
+  color: #475467;
+}
+
 .settings-group h3 {
   margin: 0;
   color: #344054;
@@ -966,6 +1005,10 @@ tr:last-child td {
   }
 
   .api-group label:nth-child(3) {
+    grid-column: auto;
+  }
+
+  .settings-test-row {
     grid-column: auto;
   }
 

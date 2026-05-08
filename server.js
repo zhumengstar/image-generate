@@ -232,6 +232,29 @@ function adminSettings(settings) {
   };
 }
 
+function adminTestSettings(baseSettings, body = {}) {
+  const settings = { ...baseSettings };
+  if (typeof body.openaiApiKey === "string" && body.openaiApiKey.trim()) {
+    settings.openaiApiKey = body.openaiApiKey.trim();
+  }
+  if (typeof body.apiBaseUrl === "string") {
+    settings.apiBaseUrl = body.apiBaseUrl.trim().replace(/\/+$/, "");
+  }
+  if (typeof body.model === "string" && body.model.trim()) {
+    settings.model = body.model.trim();
+  }
+  if (typeof body.promptPolishApiKey === "string" && body.promptPolishApiKey.trim()) {
+    settings.promptPolishApiKey = body.promptPolishApiKey.trim();
+  }
+  if (typeof body.promptPolishBaseUrl === "string") {
+    settings.promptPolishBaseUrl = body.promptPolishBaseUrl.trim().replace(/\/+$/, "");
+  }
+  if (typeof body.promptPolishModel === "string" && body.promptPolishModel.trim()) {
+    settings.promptPolishModel = body.promptPolishModel.trim();
+  }
+  return settings;
+}
+
 function sendJson(res, status, payload, extraHeaders = {}) {
   res.writeHead(status, { ...jsonHeaders, ...extraHeaders });
   res.end(JSON.stringify(payload));
@@ -952,6 +975,51 @@ async function routeApi(req, res, url) {
     ensureAuthenticated(current);
     ensureAdmin(current);
     return sendJson(res, 200, adminSettings(await store.getSettings()));
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/admin/settings/test-image") {
+    const current = await getCurrentUser(req);
+    ensureAuthenticated(current);
+    ensureAdmin(current);
+    const body = await readJsonBody(req);
+    const settings = adminTestSettings(await store.getSettings(), body);
+    if (!getOpenAIApiKey(settings) || !getOpenAIBaseUrl(settings)) {
+      throw httpError("Image API is not configured", 400);
+    }
+    const startedAt = Date.now();
+    await callOpenAIImages(settings, {
+      model: String(settings.model || DEFAULT_MODEL).trim() || DEFAULT_MODEL,
+      prompt: "Connectivity test image: a simple red circle on a white background.",
+      n: 1,
+      size: "1024x1024",
+      quality: "low",
+      background: "auto",
+      output_format: "png"
+    });
+    return sendJson(res, 200, {
+      ok: true,
+      message: "Image API test passed",
+      elapsedMs: Date.now() - startedAt
+    });
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/admin/settings/test-polish") {
+    const current = await getCurrentUser(req);
+    ensureAuthenticated(current);
+    ensureAdmin(current);
+    const body = await readJsonBody(req);
+    const settings = adminTestSettings(await store.getSettings(), body);
+    if (!getPromptPolishEndpoint(settings) || !getPromptPolishApiKey(settings)) {
+      throw httpError("Prompt polish API is not configured", 400);
+    }
+    const startedAt = Date.now();
+    const prompt = await polishImagePrompt(settings, "把图片改成傍晚海边的电影感画面，保留主体结构。");
+    return sendJson(res, 200, {
+      ok: true,
+      message: "Prompt polish API test passed",
+      elapsedMs: Date.now() - startedAt,
+      prompt
+    });
   }
 
   if (req.method === "PATCH" && url.pathname === "/api/admin/settings") {
