@@ -760,6 +760,9 @@ async function saveGeneratedImages(user, request, openaiResult) {
     const absolutePath = path.join(GENERATED_DIR, filename);
     await fs.writeFile(absolutePath, imageFile.buffer);
 
+    const usage = request.editContext
+      ? { openai: openaiResult.usage || item.usage || null, editContext: request.editContext }
+      : openaiResult.usage || item.usage || null;
     const generation = {
       id,
       userId: user.id,
@@ -772,7 +775,7 @@ async function saveGeneratedImages(user, request, openaiResult) {
       filename,
       isPublic: Boolean(request.isPublic),
       revisedPrompt: item.revised_prompt || "",
-      usage: openaiResult.usage || item.usage || null,
+      usage,
       createdAt: nowIso()
     };
     saved.push({
@@ -1048,6 +1051,8 @@ async function routeApi(req, res, url) {
     ensureAuthenticated(current);
     const generations = (await store.listGenerationsForUser(current.user, 200)).map((generation) => ({
       ...generation,
+      usage: undefined,
+      editContext: generation.usage?.editContext || null,
       imageUrl: `/api/images/${generation.id}/file`
     }));
     return sendJson(res, 200, { generations });
@@ -1070,6 +1075,8 @@ async function routeApi(req, res, url) {
     const limit = sanitizePositiveInt(url.searchParams.get("limit"), 60, 120);
     const generations = (await store.listPublicGenerations(limit)).map((generation) => ({
       ...generation,
+      usage: undefined,
+      editContext: undefined,
       imageUrl: `/api/images/${generation.id}/file`
     }));
     return sendJson(res, 200, { generations });
@@ -1207,7 +1214,12 @@ async function routeApi(req, res, url) {
       quality: "auto",
       background: "auto",
       output_format: "png",
-      isPublic: body.isPublic === true
+      isPublic: body.isPublic === true,
+      editContext: {
+        primaryImage: { imageData, maskData },
+        referenceImages,
+        editConsistency
+      }
     };
     const auditId = randomId("req_");
     await store.insertGenerationRequest({

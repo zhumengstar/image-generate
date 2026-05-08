@@ -722,12 +722,7 @@ function renderRecentCreations() {
     button.addEventListener("click", () => {
       const item = displayItems.find((entry) => String(entry.id) === button.dataset.recentRetry);
       if (!item) return;
-      state.forceHero = true;
-      state.showGenerationView = false;
-      state.draftPrompt = item.prompt;
-      setView("home");
-      syncComposers();
-      setTimeout(() => submitGeneration($(".composer", elements.heroComposerMount)), 80);
+      regenerateItem(item);
     });
   });
   $$("[data-recent-editor]", elements.recentMasonry).forEach((button) => {
@@ -1118,6 +1113,92 @@ function scrollToBottom() {
   setTimeout(() => window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" }), 80);
 }
 
+function cloneEditContext(context) {
+  return context ? JSON.parse(JSON.stringify(context)) : null;
+}
+
+async function regenerateItem(item) {
+  if (!item) return;
+  if (!item.editContext) {
+    state.draftPrompt = item.prompt;
+    syncComposers();
+    const form = $(".composer", elements.stickyComposerMount) || $(".composer", elements.heroComposerMount);
+    submitGeneration(form);
+    return;
+  }
+  if (!state.user) {
+    openAuthModal("login");
+    return;
+  }
+  if (!state.settings?.hasApiKey) {
+    showToast(state.lang === "zh" ? "请先在后台配置 OpenAI API Key" : "Configure the OpenAI API key first", "ri-key-2-line");
+    return;
+  }
+  if (state.generating) return;
+
+  const tempId = `tmp_${Date.now()}`;
+  const editContext = cloneEditContext(item.editContext);
+  const pendingItem = {
+    id: tempId,
+    prompt: item.prompt,
+    images: [],
+    status: "generating",
+    time: new Date().toISOString(),
+    isPublic: Boolean(item.isPublic),
+    editContext
+  };
+  state.history.push(pendingItem);
+  state.forceHero = false;
+  state.showGenerationView = true;
+  state.generating = true;
+  startFunMessages();
+  renderAll();
+  setView("home");
+  scrollToBottom();
+
+  try {
+    const data = await api("/api/images/edit", {
+      method: "POST",
+      body: JSON.stringify({
+        prompt: item.prompt,
+        primaryImage: editContext.primaryImage,
+        referenceImages: editContext.referenceImages || [],
+        editConsistency: editContext.editConsistency || "high",
+        isPublic: Boolean(item.isPublic)
+      })
+    });
+    const generation = data.generations[0];
+    state.user.credits = data.credits;
+    state.stats.todayGenerated += 1;
+    state.history = state.history.map((entry) =>
+      entry.id === tempId
+        ? {
+            ...entry,
+            id: generation.id,
+            images: [generation.imageUrl],
+            status: "done",
+            time: generation.createdAt,
+            model: generation.model,
+            isPublic: Boolean(generation.isPublic),
+            editContext
+          }
+        : entry
+    );
+    if (generation.isPublic) await loadPublicGallery();
+  } catch (error) {
+    state.history = state.history.map((entry) =>
+      entry.id === tempId ? { ...entry, status: "error", error: error.message } : entry
+    );
+    if (/credit|额度|积分|Not enough/i.test(error.message)) openCreditsModal();
+    else showToast(error.message, "ri-error-warning-line");
+  } finally {
+    state.generating = false;
+    stopFunMessages();
+    renderAll();
+    scrollToBottom();
+  }
+}
+
 async function loadHistory() {
   if (!state.user) {
     state.history = [];
@@ -1136,6 +1217,7 @@ async function loadHistory() {
         time: generation.createdAt,
         model: generation.model,
         isPublic: Boolean(generation.isPublic),
+        editContext: generation.editContext || null,
         options: {
           size: generation.size,
           quality: generation.quality,
@@ -1164,14 +1246,14 @@ function renderHistory() {
     const error = item.status === "error" ? `<div class="error-box">${escapeHtml(item.error || "Error")}</div>` : "";
     const actions = item.status === "done" ? `
       <div class="message-actions">
-        <button type="button" data-retry="${escapeHtml(item.prompt)}"><i class="ri-refresh-line"></i>${text("retry")}</button>
+        <button type="button" data-retry="${escapeHtml(item.id)}"><i class="ri-refresh-line"></i>${text("retry")}</button>
         <a href="${item.images[0]}" download="${item.id}.png"><i class="ri-download-line"></i>${text("download")}</a>
         <button type="button" data-edit="${escapeHtml(item.prompt)}"><i class="ri-edit-line"></i>${text("edit")}</button>
         <button type="button" data-edit-image="${escapeHtml(item.id)}"><i class="ri-magic-line"></i>${text("openEditor")}</button>
       </div>
     ` : item.status === "error" ? `
       <div class="message-actions">
-        <button type="button" data-retry="${escapeHtml(item.prompt)}"><i class="ri-refresh-line"></i>${text("retry")}</button>
+        <button type="button" data-retry="${escapeHtml(item.id)}"><i class="ri-refresh-line"></i>${text("retry")}</button>
         <button type="button" data-edit="${escapeHtml(item.prompt)}"><i class="ri-edit-line"></i>${text("edit")}</button>
       </div>
     ` : "";
@@ -1191,10 +1273,8 @@ function renderHistory() {
 
   $$("[data-retry]", elements.historyList).forEach((button) => {
     button.addEventListener("click", () => {
-      state.draftPrompt = button.dataset.retry;
-      syncComposers();
-      const form = $(".composer", elements.stickyComposerMount) || $(".composer", elements.heroComposerMount);
-      submitGeneration(form);
+      const item = state.history.find((entry) => String(entry.id) === button.dataset.retry);
+      regenerateItem(item);
     });
   });
   $$("[data-edit]", elements.historyList).forEach((button) => {
@@ -1823,16 +1903,21 @@ async function submitImageEdit(event) {
           note: image.note || ""
         };
       }));
+    const editContext = {
+      primaryImage: {
+        imageData: primaryAnnotated.imageData,
+        maskData: primaryAnnotated.maskData
+      },
+      referenceImages,
+      editConsistency: state.editor.consistency
+    };
     const data = await api("/api/images/edit", {
       method: "POST",
       body: JSON.stringify({
         prompt,
-        primaryImage: {
-          imageData: primaryAnnotated.imageData,
-          maskData: primaryAnnotated.maskData
-        },
-        referenceImages,
-        editConsistency: state.editor.consistency,
+        primaryImage: editContext.primaryImage,
+        referenceImages: editContext.referenceImages,
+        editConsistency: editContext.editConsistency,
         isPublic: elements.editorPublicInput.checked
       })
     });
@@ -1846,7 +1931,8 @@ async function submitImageEdit(event) {
       status: "done",
       time: generation.createdAt,
       model: generation.model,
-      isPublic: Boolean(generation.isPublic)
+      isPublic: Boolean(generation.isPublic),
+      editContext
     });
     setEditorImage(generation.imageUrl);
     if (generation.isPublic) await loadPublicGallery();
@@ -2164,11 +2250,7 @@ async function loadMyWorks(forceReload = false) {
       if (!item) return;
       state.restoreWorksOnViewerClose = false;
       closeModal();
-      state.forceHero = true;
-      state.draftPrompt = item.prompt;
-      setView("home");
-      syncComposers();
-      setTimeout(() => submitGeneration($(".composer", elements.heroComposerMount)), 80);
+      regenerateItem(item);
     });
   });
   $$("[data-work-editor]", grid).forEach((button) => {
