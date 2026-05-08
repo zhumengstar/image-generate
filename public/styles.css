@@ -2149,7 +2149,7 @@ a {
   min-height: calc(100vh - 160px);
   display: grid;
   place-items: center;
-  padding: 110px 48px 168px;
+  padding: 110px 48px 248px;
 }
 
 .editor-upload-card {
@@ -2188,7 +2188,7 @@ a {
 
 .editor-image-frame {
   max-width: min(76vw, 980px);
-  max-height: calc(100vh - 280px);
+  max-height: calc(100vh - 390px);
   display: grid;
   gap: 14px;
   place-items: center;
@@ -2335,7 +2335,7 @@ a {
 .editor-image-scaler img {
   display: block;
   max-width: min(76vw, 980px);
-  max-height: calc(100vh - 280px);
+  max-height: calc(100vh - 390px);
   width: auto;
   height: auto;
   user-select: none;
@@ -2770,7 +2770,7 @@ a {
   }
 
   .editor-canvas-area {
-    padding: 104px 18px 178px;
+    padding: 104px 18px 248px;
   }
 
   .editor-prompt-bar {
@@ -2933,6 +2933,7 @@ a {
   .editor-image-scaler img,
   .editor-image-frame {
     max-width: calc(100vw - 42px);
+    max-height: calc(100vh - 340px);
   }
 
   .editor-reference-note {
