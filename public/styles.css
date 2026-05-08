@@ -2361,18 +2361,20 @@ a {
   color: rgba(255, 255, 255, 0.54);
 }
 
+.editor-public-toggle,
 .editor-consistency {
   display: inline-flex;
   align-items: center;
   gap: 8px;
   flex: 0 0 auto;
-  min-height: 42px;
-  padding: 0 12px;
+  min-height: 54px;
+  padding: 0 14px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.08);
-  color: rgba(255, 255, 255, 0.68);
-  font-size: 12px;
+  background: rgba(255, 255, 255, 0.09);
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 14px;
   font-weight: 700;
+  white-space: nowrap;
 }
 
 .editor-consistency select {
@@ -2381,6 +2383,8 @@ a {
   color: #fff;
   background: transparent;
   font: inherit;
+  font-size: 14px;
+  font-weight: 800;
   cursor: pointer;
 }
 
@@ -2627,11 +2631,15 @@ a {
   }
 
   .editor-public-toggle {
-    order: 5;
+    order: 4;
   }
 
   .editor-consistency {
-    order: 4;
+    order: 5;
+  }
+
+  .editor-prompt-bar button[type="submit"] {
+    order: 6;
   }
 
   .editor-zoom {
@@ -2782,10 +2790,11 @@ a {
     font-size: 15px;
   }
 
+  .editor-public-toggle,
   .editor-consistency {
-    min-height: 38px;
+    min-height: 48px;
     padding: 0 10px;
-    font-size: 11px;
+    font-size: 12px;
   }
 
   .editor-prompt-bar button[type="submit"] {

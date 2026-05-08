@@ -167,6 +167,11 @@
               </label>
               <i class="ri-sparkling-2-fill editor-prompt-icon"></i>
               <input id="editorPromptInput" placeholder="让背景池塘开满荷花">
+              <label class="square-toggle editor-public-toggle">
+                <span data-i18n="publishToSquare">公开到广场</span>
+                <input id="editorPublicInput" type="checkbox">
+                <span class="toggle-track" aria-hidden="true"></span>
+              </label>
               <label class="editor-consistency">
                 <span data-i18n="editConsistency">一致性</span>
                 <select id="editorConsistencyInput">
@@ -174,11 +179,6 @@
                   <option value="medium" selected data-i18n="consistencyMedium">中</option>
                   <option value="high" data-i18n="consistencyHigh">高</option>
                 </select>
-              </label>
-              <label class="square-toggle editor-public-toggle">
-                <span data-i18n="publishToSquare">公开到广场</span>
-                <input id="editorPublicInput" type="checkbox">
-                <span class="toggle-track" aria-hidden="true"></span>
               </label>
               <button type="submit">
                 <span data-i18n="editImage">编辑</span>
