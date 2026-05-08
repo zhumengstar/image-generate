@@ -566,6 +566,42 @@ function showToast(message, icon = "ri-information-line") {
   setTimeout(() => toast.remove(), 2800);
 }
 
+async function saveImageToDevice(imageUrl, fileName, title = "") {
+  const fallbackOpen = () => {
+    const opened = window.open(imageUrl, "_blank", "noopener");
+    if (!opened) window.location.href = imageUrl;
+  };
+
+  try {
+    const response = await fetch(imageUrl, { mode: "cors", credentials: "omit" });
+    if (!response.ok) throw new Error("Image fetch failed");
+    const blob = await response.blob();
+    const mimeType = blob.type || "image/png";
+    const file = new File([blob], fileName, { type: mimeType });
+
+    if (navigator.share && navigator.canShare?.({ files: [file] })) {
+      await navigator.share({
+        files: [file],
+        title: title || fileName,
+        text: title || fileName
+      });
+      return;
+    }
+
+    const blobUrl = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = blobUrl;
+    link.download = fileName;
+    link.rel = "noopener";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 4000);
+  } catch (error) {
+    fallbackOpen();
+  }
+}
+
 function applyI18n(root = document) {
   $$("[data-i18n]", root).forEach((node) => {
     node.textContent = text(node.dataset.i18n);
@@ -638,6 +674,10 @@ function showHomeHero({ focusPrompt = false, smooth = false, scrollTop = 160 } =
   }
 }
 
+function saveActionHtml(imageUrl, fileName, label = text("download")) {
+  return `<button type="button" data-save-image="${escapeHtml(imageUrl)}" data-save-file="${escapeHtml(fileName)}" data-save-label="${escapeHtml(label)}"><i class="ri-download-line"></i>${escapeHtml(label)}</button>`;
+}
+
 function openPromptLibrary() {
   setView("library");
   window.scrollTo({ top: 0, behavior: "auto" });
@@ -704,7 +744,7 @@ function renderRecentCreations() {
           <div class="work-footer">
             <span>${escapeHtml(item.time ? formatDate(item.time) : "")}${item.isPublic ? ` · ${text("publishToSquare")}` : ""}</span>
             <div class="work-actions">
-              ${imageUrl ? `<a href="${escapeHtml(imageUrl)}" download="${escapeHtml(item.id)}.png"><i class="ri-download-line"></i>${text("download")}</a>` : ""}
+              ${imageUrl ? saveActionHtml(imageUrl, `${item.id}.png`) : ""}
               <button type="button" data-recent-retry="${escapeHtml(item.id)}"><i class="ri-refresh-line"></i>${text("retry")}</button>
               ${imageUrl ? `<button type="button" data-recent-editor="${escapeHtml(item.id)}"><i class="ri-magic-line"></i>${text("openEditor")}</button>` : ""}
             </div>
@@ -750,7 +790,7 @@ function openRecentPreview(item, options = {}) {
         <h2>${escapeHtml(item.title || text("preview"))}</h2>
         <p>${escapeHtml(item.prompt)}</p>
         <div class="message-actions preview-actions">
-          ${imageUrl ? `<a href="${escapeHtml(imageUrl)}" download="${escapeHtml(item.id)}.png"><i class="ri-download-line"></i>${text("download")}</a>` : ""}
+          ${imageUrl ? saveActionHtml(imageUrl, `${item.id}.png`) : ""}
           ${item.image ? `<button type="button" data-preview-editor><i class="ri-magic-line"></i>${text("openEditor")}</button>` : ""}
           <button type="button" data-preview-use><i class="ri-edit-line"></i>${text("edit")}</button>
           <button type="button" data-preview-copy><i class="ri-file-copy-line"></i>${text("copy")}</button>
@@ -1288,7 +1328,7 @@ function renderHistory() {
     const actions = item.status === "done" ? `
       <div class="message-actions">
         <button type="button" data-retry="${escapeHtml(item.id)}"><i class="ri-refresh-line"></i>${text("retry")}</button>
-        <a href="${item.images[0]}" download="${item.id}.png"><i class="ri-download-line"></i>${text("download")}</a>
+        ${saveActionHtml(item.images[0], `${item.id}.png`)}
         <button type="button" data-edit="${escapeHtml(item.prompt)}"><i class="ri-edit-line"></i>${text("edit")}</button>
         <button type="button" data-edit-image="${escapeHtml(item.id)}"><i class="ri-magic-line"></i>${text("openEditor")}</button>
       </div>
@@ -2368,7 +2408,7 @@ function workCardHtml(item) {
         <div class="work-footer">
           <span>${escapeHtml(formatDate(item.time))}${item.isPublic ? ` · ${text("publishToSquare")}` : ""}</span>
           <div class="work-actions">
-            <a href="${escapeHtml(item.images[0])}" download="${escapeHtml(item.id)}.png"><i class="ri-download-line"></i>${text("download")}</a>
+            ${saveActionHtml(item.images[0], `${item.id}.png`)}
             <button type="button" data-work-retry="${escapeHtml(item.id)}"><i class="ri-refresh-line"></i>${text("retry")}</button>
             <button type="button" data-work-editor="${escapeHtml(item.id)}"><i class="ri-magic-line"></i>${text("openEditor")}</button>
             <button class="work-delete" type="button" data-work-delete="${escapeHtml(item.id)}"><i class="ri-delete-bin-line"></i>${state.lang === "zh" ? "删除" : "Delete"}</button>
@@ -2496,7 +2536,7 @@ function openImageViewer(imageUrl, prompt = "", id = "image", options = {}) {
         <span data-viewer-zoom-label>100%</span>
         <button type="button" data-viewer-zoom-in title="放大" aria-label="放大"><i class="ri-add-line"></i></button>
         <button type="button" data-viewer-reset title="复位" aria-label="复位"><i class="ri-fullscreen-exit-line"></i></button>
-        <a href="${escapeHtml(imageUrl)}" download="${escapeHtml(fileName)}" title="${text("download")}" aria-label="${text("download")}"><i class="ri-download-line"></i></a>
+        <button type="button" data-save-image="${escapeHtml(imageUrl)}" data-save-file="${escapeHtml(fileName)}" data-save-label="${escapeHtml(text("download"))}" title="${text("download")}" aria-label="${text("download")}"><i class="ri-download-line"></i></button>
       </div>
       <div class="image-viewer-stage">
         <img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(truncate(prompt, 120))}" data-viewer-image draggable="false">
@@ -2967,6 +3007,15 @@ function bindGlobalEvents() {
     });
   });
   document.addEventListener("click", (event) => {
+    const saveButton = event.target.closest("[data-save-image]");
+    if (saveButton) {
+      event.preventDefault();
+      const imageUrl = saveButton.dataset.saveImage;
+      const fileName = saveButton.dataset.saveFile || "image.png";
+      const label = saveButton.dataset.saveLabel || text("download");
+      saveImageToDevice(imageUrl, fileName, label);
+      return;
+    }
     if (event.target.closest("[data-editor-consistency]")) return;
     $("[data-editor-consistency]", elements.editorView)?.classList.remove("open");
     $("[data-editor-consistency-trigger]", elements.editorView)?.setAttribute("aria-expanded", "false");
