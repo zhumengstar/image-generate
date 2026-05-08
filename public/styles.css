@@ -2908,27 +2908,27 @@ a {
 
   .send-button,
   .polish-button {
-    min-height: 44px;
-    padding-inline: 9px;
-    border-radius: 14px;
-    font-size: 13px;
-    gap: 5px;
+    min-height: 40px;
+    padding-inline: 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    gap: 4px;
   }
 
   .polish-button {
-    min-width: 78px;
+    min-width: 72px;
   }
 
   .send-button {
-    min-width: 68px;
+    min-width: 62px;
   }
 
   .polish-button i {
-    font-size: 18px;
+    font-size: 16px;
   }
 
   .send-button i {
-    font-size: 16px;
+    font-size: 15px;
   }
 
   .prompt-box {
