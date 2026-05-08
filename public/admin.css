@@ -336,18 +336,12 @@ a {
 }
 
 .model-picker input {
-  padding-right: 44px;
+  padding-right: 16px;
   background: #fff;
 }
 
 .model-picker i {
-  position: absolute;
-  right: 16px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: #7c3aed;
-  font-size: 20px;
-  pointer-events: none;
+  display: none;
 }
 
 .settings-test-row {
