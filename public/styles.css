@@ -2860,9 +2860,36 @@ a {
   }
 
   .composer-head {
-    align-items: flex-start;
-    flex-direction: column;
-    gap: 12px;
+    align-items: center;
+    flex-direction: row;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+
+  .composer-head .model-chip {
+    min-height: 34px;
+    padding: 0 14px;
+    font-size: 13px;
+  }
+
+  .composer-head .square-toggle {
+    gap: 7px;
+    font-size: 12px;
+  }
+
+  .composer-head .toggle-track {
+    width: 30px;
+    height: 18px;
+  }
+
+  .composer-head .toggle-track::after {
+    width: 14px;
+    height: 14px;
+  }
+
+  .composer-head .square-toggle input:checked + .toggle-track::after {
+    transform: translateX(12px);
   }
 
   .composer-bar {
