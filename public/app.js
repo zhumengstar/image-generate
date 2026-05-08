@@ -1345,6 +1345,13 @@ function renderEditor() {
     elements.editorPromptInput.value = state.editor.prompt || "";
   }
   elements.editorConsistencyInput.value = state.editor.consistency;
+  const consistencyKey = {
+    low: "consistencyLow",
+    medium: "consistencyMedium",
+    high: "consistencyHigh"
+  }[state.editor.consistency] || "consistencyMedium";
+  const consistencyCurrent = $("[data-editor-consistency-current]", elements.editorView);
+  if (consistencyCurrent) consistencyCurrent.textContent = text(consistencyKey);
   $$("[data-editor-consistency-value]", elements.editorView).forEach((button) => {
     button.classList.toggle("active", button.dataset.editorConsistencyValue === state.editor.consistency);
   });
@@ -2554,12 +2561,25 @@ function bindGlobalEvents() {
   elements.editorConsistencyInput.addEventListener("change", () => {
     state.editor.consistency = elements.editorConsistencyInput.value;
   });
+  $("[data-editor-consistency-trigger]", elements.editorView)?.addEventListener("click", () => {
+    const wrap = $("[data-editor-consistency]", elements.editorView);
+    const expanded = !wrap.classList.contains("open");
+    wrap.classList.toggle("open", expanded);
+    $("[data-editor-consistency-trigger]", elements.editorView)?.setAttribute("aria-expanded", String(expanded));
+  });
   $$("[data-editor-consistency-value]", elements.editorView).forEach((button) => {
     button.addEventListener("click", () => {
       state.editor.consistency = button.dataset.editorConsistencyValue;
       elements.editorConsistencyInput.value = state.editor.consistency;
+      $("[data-editor-consistency]", elements.editorView)?.classList.remove("open");
+      $("[data-editor-consistency-trigger]", elements.editorView)?.setAttribute("aria-expanded", "false");
       renderEditor();
     });
+  });
+  document.addEventListener("click", (event) => {
+    if (event.target.closest("[data-editor-consistency]")) return;
+    $("[data-editor-consistency]", elements.editorView)?.classList.remove("open");
+    $("[data-editor-consistency-trigger]", elements.editorView)?.setAttribute("aria-expanded", "false");
   });
   elements.editorPromptInput.addEventListener("paste", async (event) => {
     const files = pastedImageFiles(event, "edit-image");

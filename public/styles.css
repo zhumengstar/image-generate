@@ -2363,6 +2363,7 @@ a {
 
 .editor-public-toggle,
 .editor-consistency {
+  position: relative;
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -2377,21 +2378,64 @@ a {
   white-space: nowrap;
 }
 
-.editor-consistency-options {
+.editor-consistency-trigger {
   display: inline-flex;
   align-items: center;
   gap: 2px;
-  padding: 2px;
+  height: 28px;
+  min-width: 46px;
+  padding: 0 8px 0 10px;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 800;
+  box-shadow: none;
+}
+
+.editor-consistency-trigger i {
+  font-size: 16px;
+  transition: transform 0.16s ease;
+}
+
+.editor-consistency.open .editor-consistency-trigger i {
+  transform: rotate(180deg);
+}
+
+.editor-consistency-menu {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 8px);
+  z-index: 55;
+  min-width: 86px;
+  padding: 6px;
+  display: grid;
+  gap: 4px;
+  border-radius: 16px;
+  background: rgba(22, 22, 30, 0.98);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 16px 42px rgba(0, 0, 0, 0.42);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(6px) scale(0.96);
+  transform-origin: right bottom;
+  transition: opacity 0.14s ease, transform 0.14s ease;
+}
+
+.editor-consistency.open .editor-consistency-menu {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0) scale(1);
 }
 
 .editor-consistency-option {
-  min-width: 26px;
-  height: 26px;
-  padding: 0 7px;
-  border-radius: 999px;
-  color: rgba(255, 255, 255, 0.62);
+  width: 100%;
+  min-width: 0;
+  height: 32px;
+  padding: 0 10px;
+  justify-content: flex-start;
+  border-radius: 10px;
+  color: rgba(255, 255, 255, 0.72);
   background: transparent;
   font-size: 13px;
   font-weight: 800;
@@ -2820,9 +2864,8 @@ a {
   }
 
   .editor-consistency-option {
-    min-width: 22px;
-    height: 22px;
-    padding: 0 6px;
+    height: 30px;
+    padding: 0 9px;
     font-size: 12px;
   }
 
