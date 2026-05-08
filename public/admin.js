@@ -48,7 +48,6 @@ function modelFieldConfig(kind) {
   if (kind === "polish") {
     return {
       input: "#promptPolishModelInput",
-      list: "#polishModelOptions",
       button: "#loadPolishModelsBtn",
       result: "#polishModelResult",
       endpoint: "/api/admin/settings/models/polish",
@@ -57,7 +56,6 @@ function modelFieldConfig(kind) {
   }
   return {
     input: "#modelInput",
-    list: "#imageModelOptions",
     button: "#loadImageModelsBtn",
     result: "#imageModelResult",
     endpoint: "/api/admin/settings/models/image",
@@ -67,15 +65,17 @@ function modelFieldConfig(kind) {
 
 function renderModelOptions(kind, models = []) {
   const config = modelFieldConfig(kind);
-  const datalist = $(config.list);
-  const input = $(config.input);
-  if (!datalist || !input) return;
+  const select = $(config.input);
+  if (!select) return;
+  const currentValue = String(select.value || "").trim();
   const uniqueModels = [...new Set((models || []).map((model) => String(model || "").trim()).filter(Boolean))];
+  const options = currentValue && !uniqueModels.includes(currentValue)
+    ? [currentValue, ...uniqueModels]
+    : uniqueModels;
   state.modelOptions[kind] = uniqueModels;
-  datalist.innerHTML = uniqueModels.map((model) => `<option value="${escapeHtml(model)}"></option>`).join("");
-  if (uniqueModels.length && !input.value.trim()) {
-    input.value = uniqueModels[0];
-  }
+  if (!options.length) return;
+  select.innerHTML = options.map((model) => `<option value="${escapeHtml(model)}">${escapeHtml(model)}</option>`).join("");
+  select.value = currentValue || options[0];
 }
 
 function refreshModelOptionsFromState() {
@@ -649,7 +649,9 @@ function renderSettings() {
             <label class="model-field">
               <span>Image 模型</span>
               <div class="model-picker">
-                <input id="modelInput" list="imageModelOptions" value="${escapeHtml(settings.model || "GPT-IMAGE-2")}" placeholder="gpt-image-2">
+                <select id="modelInput">
+                  <option value="${escapeHtml(settings.model || "GPT-IMAGE-2")}">${escapeHtml(settings.model || "GPT-IMAGE-2")}</option>
+                </select>
                 <i class="ri-arrow-down-s-line"></i>
               </div>
             </label>
@@ -663,7 +665,6 @@ function renderSettings() {
                 <span id="imageModelResult">可从接口拉取全部 Image 模型并选择。</span>
               </div>
             </div>
-            <datalist id="imageModelOptions"></datalist>
           </div>
 
           <div class="settings-section-head">
@@ -679,7 +680,9 @@ function renderSettings() {
             <label class="model-field">
               <span>大模型模型</span>
               <div class="model-picker">
-                <input id="promptPolishModelInput" list="polishModelOptions" value="${escapeHtml(settings.promptPolishModel || "gpt-5.5")}" placeholder="gpt-5.5">
+                <select id="promptPolishModelInput">
+                  <option value="${escapeHtml(settings.promptPolishModel || "gpt-5.5")}">${escapeHtml(settings.promptPolishModel || "gpt-5.5")}</option>
+                </select>
                 <i class="ri-arrow-down-s-line"></i>
               </div>
             </label>
@@ -693,7 +696,6 @@ function renderSettings() {
                 <span id="polishModelResult">可从接口拉取全部大模型并选择。</span>
               </div>
             </div>
-            <datalist id="polishModelOptions"></datalist>
           </div>
 
           <div class="settings-group compact-fields">
