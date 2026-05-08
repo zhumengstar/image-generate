@@ -302,25 +302,25 @@ a {
 
 .settings-group {
   display: grid;
-  gap: 12px;
-  padding: 18px;
+  gap: 14px;
+  padding: 20px;
   border: 1px solid #eef2f7;
   border-radius: 16px;
   background: linear-gradient(180deg, #fff, #fbfcff);
 }
 
 .api-group {
-  grid-template-columns: minmax(0, 1.12fr) minmax(0, 1.28fr);
+  grid-template-columns: minmax(220px, 0.95fr) minmax(260px, 1.15fr) minmax(220px, 0.82fr);
   align-items: end;
 }
 
 .api-group label:nth-child(3) {
-  grid-column: 1;
+  grid-column: auto;
 }
 
 .model-field {
   position: relative;
-  width: min(100%, 420px);
+  width: 100%;
 }
 
 .model-field > span {
@@ -353,11 +353,11 @@ a {
 .settings-test-row {
   grid-column: 1 / -1;
   display: grid;
-  grid-template-columns: minmax(300px, 420px) minmax(0, 1fr);
+  grid-template-columns: minmax(300px, max-content) minmax(260px, 1fr);
   align-items: center;
-  gap: 14px;
+  gap: 16px;
   margin-top: 2px;
-  padding: 14px;
+  padding: 14px 16px;
   border: 1px solid #eef2f7;
   border-radius: 14px;
   background: #fff;
@@ -373,9 +373,11 @@ a {
 .settings-result-group {
   min-width: 0;
   display: grid;
-  justify-items: end;
-  gap: 5px;
-  text-align: right;
+  justify-items: start;
+  gap: 4px;
+  text-align: left;
+  padding-left: 16px;
+  border-left: 1px solid #eef2f7;
 }
 
 .settings-test-row button {
@@ -1040,6 +1042,16 @@ tr:last-child td {
   margin-top: 18px;
 }
 
+@media (max-width: 1180px) {
+  .api-group {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  .api-group label:nth-child(3) {
+    grid-column: 1;
+  }
+}
+
 @media (max-width: 900px) {
   .admin-topbar {
     grid-template-columns: 1fr auto;
@@ -1093,6 +1105,10 @@ tr:last-child td {
   .settings-result-group {
     justify-items: start;
     text-align: left;
+    padding-left: 0;
+    border-left: 0;
+    padding-top: 10px;
+    border-top: 1px solid #eef2f7;
   }
 
   .settings-title {
