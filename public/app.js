@@ -1517,6 +1517,7 @@ function renderEditor() {
 function normalizeEditorImages() {
   const images = state.editor.images || [];
   if (!images.length) return;
+  const activeImage = images[state.editor.activeImageIndex] || images[0];
   let primarySeen = false;
   images.forEach((image, index) => {
     if (image.isPrimary && !primarySeen) {
@@ -1528,6 +1529,12 @@ function normalizeEditorImages() {
     image.note = image.note || "";
   });
   if (!primarySeen) images[0].isPrimary = true;
+  const primaryIndex = images.findIndex((image) => image.isPrimary);
+  if (primaryIndex > 0) {
+    const [primaryImage] = images.splice(primaryIndex, 1);
+    images.unshift(primaryImage);
+  }
+  state.editor.activeImageIndex = Math.max(0, images.indexOf(activeImage));
 }
 
 function getPrimaryEditorImageIndex() {
@@ -1621,10 +1628,12 @@ function removeEditorImage(index) {
 
 function makeEditorImagePrimary(index) {
   if (index < 0 || index >= state.editor.images.length) return;
-  state.editor.images.forEach((image, imageIndex) => {
-    image.isPrimary = imageIndex === index;
+  const nextPrimary = state.editor.images[index];
+  state.editor.images.forEach((image) => {
+    image.isPrimary = image === nextPrimary;
   });
-  state.editor.activeImageIndex = index;
+  normalizeEditorImages();
+  state.editor.activeImageIndex = 0;
   syncActiveEditorImage();
   resetEditorInteraction();
   renderEditor();
