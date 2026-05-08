@@ -3056,6 +3056,28 @@ a {
     height: auto;
   }
 
+  .message-actions {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 6px;
+    padding: 0 12px 14px;
+  }
+
+  .message-actions a,
+  .message-actions button {
+    min-width: 0;
+    min-height: 32px;
+    padding: 0 5px;
+    justify-content: center;
+    gap: 3px;
+    font-size: 11px;
+    white-space: nowrap;
+  }
+
+  .message-actions i {
+    font-size: 14px;
+  }
+
   .editor-view {
     padding: 12px 10px 24px;
   }
