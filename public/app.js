@@ -61,7 +61,7 @@ const state = {
 
 const MAX_EDITOR_IMAGES = 4;
 const MAX_HOME_REFERENCES = 1;
-const WORKS_BATCH_SIZE = 12;
+const WORKS_BATCH_ROWS = 2;
 
 const i18n = {
   zh: {
@@ -2435,7 +2435,8 @@ function workCardHtml(item) {
 function renderWorksBatch(grid) {
   const items = grid._worksItems || [];
   const offset = Number(grid.dataset.worksOffset || 0);
-  const batch = items.slice(offset, offset + WORKS_BATCH_SIZE);
+  const batchSize = getWorksBatchSize(grid);
+  const batch = items.slice(offset, offset + batchSize);
   $(".works-sentinel", grid)?.remove();
   if (!batch.length) return;
   requestAnimationFrame(() => {
@@ -2447,6 +2448,11 @@ function renderWorksBatch(grid) {
       observeWorksSentinel(grid);
     }
   });
+}
+
+function getWorksBatchSize(grid) {
+  const columns = getComputedStyle(grid).gridTemplateColumns.split(" ").filter(Boolean).length || 1;
+  return Math.max(1, columns * WORKS_BATCH_ROWS);
 }
 
 function observeWorksSentinel(grid) {
