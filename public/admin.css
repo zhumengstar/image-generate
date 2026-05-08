@@ -345,12 +345,39 @@ a {
 }
 
 .model-picker input {
-  padding-right: 16px;
+  min-height: 50px;
+  padding-right: 46px;
+  border-color: #e4e7ec;
+  background: linear-gradient(180deg, #fff, #fbfbff);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.82);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.model-picker input:focus {
+  border-color: rgba(124, 58, 237, 0.45);
   background: #fff;
+  box-shadow: 0 0 0 4px rgba(124, 58, 237, 0.08);
+}
+
+.model-picker input::-webkit-calendar-picker-indicator {
+  opacity: 0;
+  cursor: pointer;
 }
 
 .model-picker i {
-  display: none;
+  position: absolute;
+  right: 15px;
+  top: 50%;
+  display: grid;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  transform: translateY(-50%);
+  border-radius: 999px;
+  background: #f4f3ff;
+  color: #7c3aed;
+  font-size: 18px;
+  pointer-events: none;
 }
 
 .settings-test-row {
