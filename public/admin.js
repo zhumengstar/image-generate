@@ -165,10 +165,6 @@ function renderDenied() {
 function renderAdmin() {
   $("#logoutBtn").classList.remove("hidden");
   $("#adminApp").innerHTML = `
-    <section class="hero">
-      <h1>后台管理</h1>
-      <p>管理用户、积分、接口设置，并查看生图审计记录、提示词、IP 和浏览器信息。</p>
-    </section>
     <div class="tabs">
       <button class="secondary ${state.view === "records" ? "active" : ""}" data-view="records">生图记录</button>
       <button class="secondary ${state.view === "users" ? "active" : ""}" data-view="users">用户管理</button>

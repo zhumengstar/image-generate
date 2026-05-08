@@ -48,9 +48,10 @@ a {
   position: sticky;
   top: 0;
   z-index: 10;
-  display: flex;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: auto minmax(240px, 1fr) auto;
   align-items: center;
+  gap: clamp(16px, 3vw, 34px);
   padding: 18px clamp(18px, 4vw, 42px);
   border-bottom: 1px solid rgba(229, 231, 235, 0.72);
   background: rgba(255, 255, 255, 0.78);
@@ -66,6 +67,7 @@ a {
 
 .brand {
   font-weight: 700;
+  white-space: nowrap;
 }
 
 .brand span {
@@ -76,6 +78,29 @@ a {
   border-radius: 50%;
   background: var(--dark);
   color: #fff;
+}
+
+.topbar-title {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.topbar-title strong {
+  color: var(--ink);
+  font-size: clamp(20px, 2.2vw, 28px);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+}
+
+.topbar-title small {
+  overflow: hidden;
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .primary,
@@ -115,7 +140,7 @@ a {
 #adminApp {
   width: min(1360px, calc(100vw - 32px));
   margin: 0 auto;
-  padding: 42px 0 80px;
+  padding: 24px 0 80px;
 }
 
 .hero {
@@ -910,6 +935,21 @@ tr:last-child td {
 }
 
 @media (max-width: 900px) {
+  .admin-topbar {
+    grid-template-columns: 1fr auto;
+    align-items: start;
+    gap: 10px 14px;
+  }
+
+  .topbar-title {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+
+  .topbar-title small {
+    white-space: normal;
+  }
+
   .grid,
   .settings-layout {
     grid-template-columns: 1fr;
