@@ -6,6 +6,10 @@ const state = {
   firstRun: false,
   view: "records",
   settings: null,
+  modelOptions: {
+    image: [],
+    polish: []
+  },
   users: [],
   records: [],
   recordFilters: { q: "", status: "all", public: "all" },
@@ -38,6 +42,45 @@ function escapeHtml(value = "") {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
+}
+
+function modelFieldConfig(kind) {
+  if (kind === "polish") {
+    return {
+      input: "#promptPolishModelInput",
+      list: "#polishModelOptions",
+      button: "#loadPolishModelsBtn",
+      result: "#polishModelResult",
+      endpoint: "/api/admin/settings/models/polish",
+      label: "娑﹁壊妯″瀷"
+    };
+  }
+  return {
+    input: "#modelInput",
+    list: "#imageModelOptions",
+    button: "#loadImageModelsBtn",
+    result: "#imageModelResult",
+    endpoint: "/api/admin/settings/models/image",
+    label: "Image 妯″瀷"
+  };
+}
+
+function renderModelOptions(kind, models = []) {
+  const config = modelFieldConfig(kind);
+  const datalist = $(config.list);
+  const input = $(config.input);
+  if (!datalist || !input) return;
+  const uniqueModels = [...new Set((models || []).map((model) => String(model || "").trim()).filter(Boolean))];
+  state.modelOptions[kind] = uniqueModels;
+  datalist.innerHTML = uniqueModels.map((model) => `<option value="${escapeHtml(model)}"></option>`).join("");
+  if (uniqueModels.length && !input.value.trim()) {
+    input.value = uniqueModels[0];
+  }
+}
+
+function refreshModelOptionsFromState() {
+  renderModelOptions("image", state.modelOptions.image || []);
+  renderModelOptions("polish", state.modelOptions.polish || []);
 }
 
 function fmt(value) {
@@ -603,11 +646,14 @@ function renderSettings() {
           <div class="settings-group api-group">
             <label>Image API Key<input id="apiKeyInput" type="password" placeholder="${escapeHtml(settings.apiKeyMask ? `当前：${settings.apiKeyMask}` : "粘贴图片生成接口 Key")}"></label>
             <label>Image API 地址<input id="apiBaseUrlInput" value="${escapeHtml(settings.apiBaseUrl || "")}" placeholder="https://api.example.com 或 https://api.example.com/v1"></label>
-            <label>Image 模型<input id="modelInput" value="${escapeHtml(settings.model || "GPT-IMAGE-2")}" placeholder="gpt-image-2"></label>
+            <label>Image 模型<input id="modelInput" list="imageModelOptions" value="${escapeHtml(settings.model || "GPT-IMAGE-2")}" placeholder="gpt-image-2"></label>
             <div class="settings-test-row">
               <button id="testImageApiBtn" class="secondary" type="button"><i class="ri-pulse-line"></i>测试 Image 接口</button>
+              <button id="loadImageModelsBtn" class="secondary" type="button"><i class="ri-scan-line"></i>拉取模型</button>
               <span id="imageApiTestResult">会发起一次最小生图请求，不会保存到图库。</span>
+              <span id="imageModelResult">可从接口拉取全部 Image 模型并选择。</span>
             </div>
+            <datalist id="imageModelOptions"></datalist>
           </div>
 
           <div class="settings-section-head">
@@ -620,11 +666,14 @@ function renderSettings() {
           <div class="settings-group api-group">
             <label>大模型 API Key<input id="promptPolishApiKeyInput" type="password" placeholder="${escapeHtml(settings.promptPolishKeyMask ? `当前：${settings.promptPolishKeyMask}` : "粘贴 AI 润色接口 Key")}"></label>
             <label>大模型 API 地址<input id="promptPolishBaseUrlInput" value="${escapeHtml(settings.promptPolishBaseUrl || "")}" placeholder="https://cliproxy.example.com 或 https://api.example.com/v1"></label>
-            <label>大模型模型<input id="promptPolishModelInput" value="${escapeHtml(settings.promptPolishModel || "gpt-5.5")}" placeholder="gpt-5.5"></label>
+            <label>大模型模型<input id="promptPolishModelInput" list="polishModelOptions" value="${escapeHtml(settings.promptPolishModel || "gpt-5.5")}" placeholder="gpt-5.5"></label>
             <div class="settings-test-row">
               <button id="testPolishApiBtn" class="secondary" type="button"><i class="ri-pulse-line"></i>测试润色接口</button>
+              <button id="loadPolishModelsBtn" class="secondary" type="button"><i class="ri-scan-line"></i>拉取模型</button>
               <span id="polishApiTestResult">会发起一次提示词润色请求。</span>
+              <span id="polishModelResult">可从接口拉取全部大模型并选择。</span>
             </div>
+            <datalist id="polishModelOptions"></datalist>
           </div>
 
           <div class="settings-group compact-fields">
@@ -689,6 +738,9 @@ function renderSettings() {
   $("#clearPolishKeyBtn").addEventListener("click", clearPolishKey);
   $("#testImageApiBtn").addEventListener("click", () => testAdminApi("image"));
   $("#testPolishApiBtn").addEventListener("click", () => testAdminApi("polish"));
+  $("#loadImageModelsBtn").addEventListener("click", () => loadProviderModels("image"));
+  $("#loadPolishModelsBtn").addEventListener("click", () => loadProviderModels("polish"));
+  refreshModelOptionsFromState();
 }
 
 async function loadPanel() {
@@ -875,6 +927,35 @@ function readSettingsForm() {
     allowRegistration: $("#allowRegistrationInput").checked,
     requireApproval: $("#requireApprovalInput").checked
   };
+}
+
+async function loadProviderModels(kind) {
+  const config = modelFieldConfig(kind);
+  const button = $(config.button);
+  const result = $(config.result);
+  const originalHtml = button.innerHTML;
+  button.disabled = true;
+  button.innerHTML = '<i class="ri-loader-4-line"></i>加载中...';
+  result.className = "testing";
+  result.textContent = "正在拉取模型列表...";
+  try {
+    const data = await api(config.endpoint, {
+      method: "POST",
+      body: JSON.stringify(readSettingsForm())
+    });
+    renderModelOptions(kind, data.models || []);
+    const count = Array.isArray(data.models) ? data.models.length : 0;
+    result.className = "success";
+    result.textContent = `已拉取 ${count} 个模型${data.endpoint ? ` · ${data.endpoint}` : ""}`;
+    toast(result.textContent);
+  } catch (error) {
+    result.className = "error";
+    result.textContent = `拉取失败：${error.message}`;
+    toast(error.message);
+  } finally {
+    button.disabled = false;
+    button.innerHTML = originalHtml;
+  }
 }
 
 async function testAdminApi(kind) {

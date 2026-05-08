@@ -255,6 +255,53 @@ function adminTestSettings(baseSettings, body = {}) {
   return settings;
 }
 
+function getModelsEndpoint(baseUrl) {
+  const cleanBase = String(baseUrl || "").trim().replace(/\/+$/, "");
+  if (!cleanBase) return "";
+  if (cleanBase.endsWith("/models")) return cleanBase;
+  if (cleanBase.endsWith("/chat/completions")) return cleanBase.replace(/\/chat\/completions$/, "/models");
+  if (cleanBase.endsWith("/images/generations")) return cleanBase.replace(/\/images\/generations$/, "/models");
+  if (cleanBase.endsWith("/images/edits")) return cleanBase.replace(/\/images\/edits$/, "/models");
+  if (cleanBase.endsWith("/v1")) return `${cleanBase}/models`;
+  return `${cleanBase}/v1/models`;
+}
+
+async function listProviderModels({ apiKey, baseUrl }) {
+  if (!apiKey) throw httpError("API key is not configured", 400);
+  const endpoint = getModelsEndpoint(baseUrl);
+  if (!endpoint) throw httpError("API base URL is not configured", 400);
+
+  const response = await fetch(endpoint, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${apiKey}`
+    }
+  });
+  const text = await response.text();
+  let data;
+  try {
+    data = text ? JSON.parse(text) : {};
+  } catch {
+    data = { raw: text };
+  }
+  if (!response.ok) {
+    const message = data?.error?.message || `Model list request failed: ${response.status}`;
+    throw httpError(message, response.status, data);
+  }
+
+  const rawModels = Array.isArray(data?.data)
+    ? data.data
+    : Array.isArray(data?.models)
+      ? data.models
+      : [];
+  const models = rawModels
+    .map((item) => String(item?.id || item?.name || item || "").trim())
+    .filter(Boolean)
+    .filter((model, index, list) => list.indexOf(model) === index)
+    .sort((a, b) => a.localeCompare(b, "en", { numeric: true, sensitivity: "base" }));
+  return { endpoint, models };
+}
+
 function sendJson(res, status, payload, extraHeaders = {}) {
   res.writeHead(status, { ...jsonHeaders, ...extraHeaders });
   res.end(JSON.stringify(payload));
@@ -1019,6 +1066,40 @@ async function routeApi(req, res, url) {
       message: "Prompt polish API test passed",
       elapsedMs: Date.now() - startedAt,
       prompt
+    });
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/admin/settings/models/image") {
+    const current = await getCurrentUser(req);
+    ensureAuthenticated(current);
+    ensureAdmin(current);
+    const body = await readJsonBody(req);
+    const settings = adminTestSettings(await store.getSettings(), body);
+    const { endpoint, models } = await listProviderModels({
+      apiKey: getOpenAIApiKey(settings),
+      baseUrl: getOpenAIBaseUrl(settings)
+    });
+    return sendJson(res, 200, {
+      ok: true,
+      endpoint,
+      models
+    });
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/admin/settings/models/polish") {
+    const current = await getCurrentUser(req);
+    ensureAuthenticated(current);
+    ensureAdmin(current);
+    const body = await readJsonBody(req);
+    const settings = adminTestSettings(await store.getSettings(), body);
+    const { endpoint, models } = await listProviderModels({
+      apiKey: getPromptPolishApiKey(settings),
+      baseUrl: getPromptPolishBaseUrl(settings)
+    });
+    return sendJson(res, 200, {
+      ok: true,
+      endpoint,
+      models
     });
   }
 
