@@ -2195,6 +2195,7 @@ a {
 }
 
 .editor-image-strip {
+  order: 1;
   display: flex;
   justify-content: center;
   gap: 10px;
@@ -2278,21 +2279,35 @@ a {
 }
 
 .editor-reference-note {
-  width: min(760px, 76vw);
+  order: 2;
+  width: auto;
+  max-width: min(760px, 76vw);
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-columns: auto;
   align-items: center;
-  gap: 10px;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: rgba(8, 8, 14, 0.82);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.24);
+}
+
+.editor-reference-note.reference-active {
+  width: min(760px, 76vw);
+  grid-template-columns: auto minmax(0, 1fr);
+  justify-content: stretch;
   padding: 10px 12px;
   border-radius: 16px;
-  background: rgba(8, 8, 14, 0.72);
-  border: 1px solid rgba(255, 255, 255, 0.12);
 }
 
 .editor-reference-note > span {
   color: rgba(255, 255, 255, 0.72);
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 800;
+  line-height: 1.2;
+  white-space: nowrap;
 }
 
 .editor-reference-note input {
@@ -2311,6 +2326,7 @@ a {
 }
 
 .editor-image-scaler {
+  order: 3;
   position: relative;
   transform-origin: center center;
   transition: transform 0.16s ease;
@@ -2920,9 +2936,19 @@ a {
   }
 
   .editor-reference-note {
-    width: calc(100vw - 42px);
+    max-width: calc(100vw - 42px);
     grid-template-columns: 1fr;
     gap: 8px;
+  }
+
+  .editor-reference-note.reference-active {
+    width: calc(100vw - 42px);
+    grid-template-columns: 1fr;
+  }
+
+  .editor-reference-note > span {
+    white-space: normal;
+    text-align: center;
   }
 
   .editor-prompt-bar > input {
