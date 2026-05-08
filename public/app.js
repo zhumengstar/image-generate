@@ -620,6 +620,13 @@ function showHomeHero({ focusPrompt = false, smooth = false, scrollTop = 160 } =
   }
 }
 
+function openPromptLibrary() {
+  setView("library");
+  window.scrollTo({ top: 0, behavior: "auto" });
+  requestAnimationFrame(() => window.scrollTo({ top: 0, behavior: "auto" }));
+  if (state.promptLoading) loadPromptLibrary();
+}
+
 function renderAll() {
   applyI18n();
   updateNav();
@@ -2510,16 +2517,10 @@ function bindGlobalEvents() {
   elements.brandBtn.addEventListener("click", () => {
     openImageCreate();
   });
-  elements.promptLibraryBtn.addEventListener("click", () => {
-    setView("library");
-    if (state.promptLoading) loadPromptLibrary();
-  });
+  elements.promptLibraryBtn.addEventListener("click", openPromptLibrary);
   elements.imageCreateBtn.addEventListener("click", openImageCreate);
   elements.imageEditorBtn.addEventListener("click", () => openImageEditor());
-  elements.openLibraryInlineBtn.addEventListener("click", () => {
-    setView("library");
-    if (state.promptLoading) loadPromptLibrary();
-  });
+  elements.openLibraryInlineBtn.addEventListener("click", openPromptLibrary);
   elements.contactBtn.addEventListener("click", openContactModal);
   elements.langBtn.addEventListener("click", () => {
     state.lang = state.lang === "zh" ? "en" : "zh";
