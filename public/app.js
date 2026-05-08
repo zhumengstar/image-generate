@@ -60,6 +60,7 @@ const state = {
 };
 
 const MAX_EDITOR_IMAGES = 4;
+const MAX_HOME_REFERENCES = 1;
 
 const i18n = {
   zh: {
@@ -808,20 +809,18 @@ function pastedImageFiles(event, prefix = "pasted-image") {
 function addReferenceFiles(files, sourceForm, { pasted = false } = {}) {
   const selectedFiles = [...(files || [])].filter((file) => file?.type?.startsWith("image/"));
   if (!selectedFiles.length) return false;
-  const slots = Math.max(0, 4 - state.references.length);
-  if (!slots) {
-    showToast(state.lang === "zh" ? "参考图最多 4 张" : "Up to 4 reference images", "ri-image-line");
-    return true;
-  }
-  state.references.push(...selectedFiles.slice(0, slots).map((file) => ({
+  state.references.forEach((reference) => {
+    if (reference?.url) URL.revokeObjectURL(reference.url);
+  });
+  state.references = selectedFiles.slice(0, MAX_HOME_REFERENCES).map((file) => ({
     file,
     url: URL.createObjectURL(file),
     name: file.name
-  })));
+  }));
   syncReferences(sourceForm);
   if (pasted) showToast(state.lang === "zh" ? "已粘贴图片" : "Image pasted", "ri-image-add-line");
-  if (selectedFiles.length > slots) {
-    showToast(state.lang === "zh" ? "参考图最多 4 张" : "Up to 4 reference images", "ri-image-line");
+  if (selectedFiles.length > MAX_HOME_REFERENCES) {
+    showToast(state.lang === "zh" ? "首页参考图只能上传 1 张" : "Only 1 home reference image is supported", "ri-image-line");
   }
   return true;
 }
@@ -859,7 +858,7 @@ function createComposer(sticky) {
     const added = addReferenceFiles(referenceInput.files, form);
     referenceInput.value = "";
     if (added) {
-      showToast(state.lang === "zh" ? "已添加参考图预览，当前后端仍按文本生成" : "Reference previews added; backend currently generates from text", "ri-image-add-line");
+      showToast(state.lang === "zh" ? "已添加参考图" : "Reference image added", "ri-image-add-line");
     }
   });
   optionsToggle.addEventListener("click", () => {
@@ -971,7 +970,7 @@ function renderReferences(row) {
 
 function syncReferences(sourceForm) {
   $$(".reference-row").forEach((row) => {
-    if (!sourceForm || row !== $(".reference-row", sourceForm)) renderReferences(row);
+    renderReferences(row);
   });
 }
 
