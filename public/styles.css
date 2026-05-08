@@ -540,6 +540,7 @@ a {
 }
 
 .add-reference-button {
+  position: relative;
   width: 48px;
   height: 48px;
   padding: 0;
@@ -551,6 +552,46 @@ a {
   background: #fff;
   color: #a0a7b3;
   font-size: 22px;
+  overflow: hidden;
+}
+
+.add-reference-button.has-reference {
+  border-style: solid;
+  border-color: rgba(124, 58, 237, 0.32);
+  background: #fff;
+  color: transparent;
+}
+
+.add-reference-button.has-reference > i {
+  opacity: 0;
+}
+
+.reference-preview {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  overflow: hidden;
+}
+
+.reference-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.reference-preview [data-remove-reference] {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  background: rgba(17, 24, 39, 0.72);
+  color: #fff;
+  font-size: 13px;
+  line-height: 1;
 }
 
 .tool-button input,

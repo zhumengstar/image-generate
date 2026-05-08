@@ -951,19 +951,34 @@ function autoSizePromptBox(textarea) {
 }
 
 function renderReferences(row) {
-  row.innerHTML = state.references.map((reference, index) => `
-    <div class="reference-thumb">
-      <img src="${reference.url}" alt="${escapeHtml(reference.name)}">
-      <button type="button" data-remove-reference="${index}"><i class="ri-close-line"></i></button>
-    </div>
-  `).join("");
-  row.classList.toggle("hidden", state.references.length === 0);
-  $$("[data-remove-reference]", row).forEach((button) => {
-    button.addEventListener("click", () => {
-      const index = Number(button.dataset.removeReference);
-      const [removed] = state.references.splice(index, 1);
+  row.innerHTML = "";
+  row.classList.add("hidden");
+  const form = row.closest(".composer");
+  const addButton = $(".add-reference-button", form);
+  if (!addButton) return;
+  $(".reference-preview", addButton)?.remove();
+  addButton.classList.toggle("has-reference", state.references.length > 0);
+  const reference = state.references[0];
+  if (reference) {
+    addButton.insertAdjacentHTML("beforeend", `
+      <span class="reference-preview">
+        <img src="${escapeHtml(reference.url)}" alt="${escapeHtml(reference.name)}">
+        <span role="button" tabindex="0" data-remove-reference="0"><i class="ri-close-line"></i></span>
+      </span>
+    `);
+  }
+  $$("[data-remove-reference]", addButton).forEach((button) => {
+    button.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      const [removed] = state.references.splice(0, 1);
       if (removed?.url) URL.revokeObjectURL(removed.url);
-      $$(".reference-row").forEach(renderReferences);
+      syncReferences();
+    });
+    button.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      event.preventDefault();
+      button.click();
     });
   });
 }
