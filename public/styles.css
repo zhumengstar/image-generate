@@ -1906,6 +1906,12 @@ a {
   padding: 0;
 }
 
+@media (min-width: 861px) {
+  .preview-actions [data-save-image] {
+    display: none;
+  }
+}
+
 @keyframes modalIn {
   from {
     opacity: 0;
