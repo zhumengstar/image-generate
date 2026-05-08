@@ -1635,6 +1635,15 @@ a {
   gap: 14px;
 }
 
+.works-sentinel {
+  grid-column: 1 / -1;
+  min-height: 48px;
+  display: grid;
+  place-items: center;
+  color: #98a2b3;
+  font-size: 13px;
+}
+
 .work-card {
   display: grid;
   grid-template-rows: auto 1fr;

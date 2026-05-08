@@ -61,6 +61,7 @@ const state = {
 
 const MAX_EDITOR_IMAGES = 4;
 const MAX_HOME_REFERENCES = 1;
+const WORKS_BATCH_SIZE = 12;
 
 const i18n = {
   zh: {
@@ -2349,7 +2350,15 @@ async function loadMyWorks(forceReload = false) {
     grid.innerHTML = `<div class="empty-message">${text("emptyWorks")}</div>`;
     return;
   }
-  grid.innerHTML = items.map((item) => `
+  grid._worksItems = items;
+  grid.dataset.worksOffset = "0";
+  grid.innerHTML = "";
+  bindWorksGrid(grid);
+  renderWorksBatch(grid);
+}
+
+function workCardHtml(item) {
+  return `
     <article class="work-card" data-work-id="${escapeHtml(item.id)}">
       <button class="work-image-button" type="button" data-work-view="${escapeHtml(item.id)}" aria-label="${escapeHtml(truncate(item.prompt, 80))}">
         <img src="${escapeHtml(item.images[0])}" loading="lazy" decoding="async" alt="${escapeHtml(truncate(item.prompt, 80))}">
@@ -2367,28 +2376,69 @@ async function loadMyWorks(forceReload = false) {
         </div>
       </div>
     </article>
-  `).join("");
-  $$("[data-work-retry]", grid).forEach((button) => {
-    button.addEventListener("click", () => {
-      const item = state.history.find((entry) => String(entry.id) === button.dataset.workRetry);
+  `;
+}
+
+function renderWorksBatch(grid) {
+  const items = grid._worksItems || [];
+  const offset = Number(grid.dataset.worksOffset || 0);
+  const batch = items.slice(offset, offset + WORKS_BATCH_SIZE);
+  $(".works-sentinel", grid)?.remove();
+  if (!batch.length) return;
+  requestAnimationFrame(() => {
+    grid.insertAdjacentHTML("beforeend", batch.map(workCardHtml).join(""));
+    const nextOffset = offset + batch.length;
+    grid.dataset.worksOffset = String(nextOffset);
+    if (nextOffset < items.length) {
+      grid.insertAdjacentHTML("beforeend", `<div class="works-sentinel"><span>${text("loadingPrompts")}</span></div>`);
+      observeWorksSentinel(grid);
+    }
+  });
+}
+
+function observeWorksSentinel(grid) {
+  const sentinel = $(".works-sentinel", grid);
+  if (!sentinel) return;
+  if (!("IntersectionObserver" in window)) {
+    setTimeout(() => renderWorksBatch(grid), 80);
+    return;
+  }
+  grid._worksObserver?.disconnect();
+  grid._worksObserver = new IntersectionObserver((entries) => {
+    if (!entries.some((entry) => entry.isIntersecting)) return;
+    grid._worksObserver?.disconnect();
+    renderWorksBatch(grid);
+  }, { root: grid.closest(".modal"), rootMargin: "240px" });
+  grid._worksObserver.observe(sentinel);
+}
+
+function bindWorksGrid(grid) {
+  if (grid.dataset.bound === "1") return;
+  grid.dataset.bound = "1";
+  grid.addEventListener("click", (event) => {
+    const retryButton = event.target.closest("[data-work-retry]");
+    if (retryButton) {
+      const item = state.history.find((entry) => String(entry.id) === retryButton.dataset.workRetry);
       if (!item) return;
       state.restoreWorksOnViewerClose = false;
       closeModal();
       regenerateItem(item);
-    });
-  });
-  $$("[data-work-editor]", grid).forEach((button) => {
-    button.addEventListener("click", () => {
-      const item = state.history.find((entry) => String(entry.id) === button.dataset.workEditor);
+      return;
+    }
+
+    const editorButton = event.target.closest("[data-work-editor]");
+    if (editorButton) {
+      const item = state.history.find((entry) => String(entry.id) === editorButton.dataset.workEditor);
       if (!item?.images?.[0]) return;
       state.restoreWorksOnViewerClose = false;
       closeModal();
       openImageEditor(item.images[0], item.prompt, item);
-    });
-  });
-  $$("[data-work-view]", grid).forEach((button) => {
-    button.addEventListener("click", () => {
-      const item = state.history.find((entry) => String(entry.id) === button.dataset.workView);
+      return;
+    }
+
+    const viewButton = event.target.closest("[data-work-view]");
+    if (viewButton) {
+      const item = state.history.find((entry) => String(entry.id) === viewButton.dataset.workView);
       if (item?.images?.[0]) {
         openRecentPreview({
           id: item.id,
@@ -2399,10 +2449,11 @@ async function loadMyWorks(forceReload = false) {
           time: item.time
         }, { restoreWorks: true });
       }
-    });
-  });
-  $$("[data-work-delete]", grid).forEach((button) => {
-    button.addEventListener("click", () => deleteWork(button.dataset.workDelete));
+      return;
+    }
+
+    const deleteButton = event.target.closest("[data-work-delete]");
+    if (deleteButton) deleteWork(deleteButton.dataset.workDelete);
   });
 }
 
