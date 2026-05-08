@@ -315,11 +315,12 @@ a {
 }
 
 .api-group label:nth-child(3) {
-  grid-column: 1 / -1;
+  grid-column: 1;
 }
 
 .model-field {
   position: relative;
+  width: min(100%, 420px);
 }
 
 .model-field > span {
@@ -331,6 +332,7 @@ a {
 .model-picker {
   position: relative;
   display: grid;
+  width: 100%;
 }
 
 .model-picker input {
@@ -351,7 +353,7 @@ a {
 .settings-test-row {
   grid-column: 1 / -1;
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-columns: minmax(300px, 420px) minmax(0, 1fr);
   align-items: center;
   gap: 14px;
   margin-top: 2px;
@@ -1071,6 +1073,10 @@ tr:last-child td {
 
   .api-group label:nth-child(3) {
     grid-column: auto;
+  }
+
+  .model-field {
+    width: 100%;
   }
 
   .settings-test-row {
