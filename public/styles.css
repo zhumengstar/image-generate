@@ -2082,25 +2082,6 @@ a {
   margin: 0 auto;
 }
 
-.editor-header {
-  min-height: 72px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
-
-.editor-tabs {
-  justify-self: center;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-}
-
-.editor-tabs button,
 .editor-toolbar button,
 .editor-zoom button,
 .editor-prompt-bar button,
@@ -2113,26 +2094,9 @@ a {
   cursor: pointer;
 }
 
-.editor-tabs button {
-  gap: 8px;
-  min-height: 44px;
-  padding: 0 26px;
-  border-radius: 999px;
-  background: transparent;
-  color: rgba(255, 255, 255, 0.62);
-  font-size: 16px;
-  font-weight: 700;
-}
-
-.editor-tabs button.active {
-  background: linear-gradient(135deg, #7c3aed, #c026d3);
-  color: #fff;
-  box-shadow: inset -4px -6px 25px rgba(201, 201, 201, 0.08), inset 4px 4px 10px rgba(29, 29, 29, 0.24);
-}
-
 .editor-workspace {
   position: relative;
-  min-height: calc(100vh - 160px);
+  min-height: calc(100vh - 88px);
   border-radius: 18px;
   overflow: hidden;
   border: 1px solid rgba(255, 255, 255, 0.08);
@@ -2624,10 +2588,6 @@ a {
     font-size: 12px;
   }
 
-  .editor-header {
-    justify-content: center;
-  }
-
   .editor-canvas-area {
     padding: 104px 18px 178px;
   }
@@ -2767,11 +2727,6 @@ a {
 
   .editor-view {
     padding: 12px 10px 24px;
-  }
-
-  .editor-tabs button {
-    min-height: 40px;
-    padding: 0 16px;
   }
 
   .editor-toolbar {
