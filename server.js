@@ -39,6 +39,7 @@ const PORT = Number(process.env.PORT || 3000);
 const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 7;
 const MAX_BODY_BYTES = 16 * 1024 * 1024;
 const DEFAULT_MODEL = "GPT-IMAGE-2";
+const IMAGE_EDIT_CREDIT_COST = 3;
 const CHECKIN_CREDIT = Number.parseInt(process.env.CHECKIN_CREDIT || "1", 10) || 1;
 const DEFAULT_PROMPT_POLISH_MODEL = "gpt-5.5";
 
@@ -1387,7 +1388,7 @@ async function routeApi(req, res, url) {
       throw httpError("Account is not active", 403);
     }
 
-    const costPerImage = Math.max(0, Number(settings.generationCreditCost ?? 1) || 0);
+    const costPerImage = IMAGE_EDIT_CREDIT_COST;
     const request = {
       model: String(settings.model || DEFAULT_MODEL).trim() || DEFAULT_MODEL,
       prompt,
