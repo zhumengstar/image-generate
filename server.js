@@ -300,10 +300,13 @@ function isValidImageSource(value) {
 function normalizeReferenceImages(value) {
   if (!Array.isArray(value)) return [];
   return value.slice(0, 3).map((item, index) => {
-    const imageData = String(item?.annotatedImageData || item?.imageData || "").trim();
-    if (!isValidImageSource(imageData)) return null;
+    const originalImageData = String(item?.imageData || "").trim();
+    const annotatedImageData = String(item?.annotatedImageData || "").trim();
+    const uploadImageData = annotatedImageData || originalImageData;
+    if (!isValidImageSource(uploadImageData)) return null;
     return {
-      imageData,
+      imageData: isValidImageSource(originalImageData) ? originalImageData : uploadImageData,
+      annotatedImageData: isValidImageSource(annotatedImageData) ? annotatedImageData : "",
       note: String(item?.note || "").trim().slice(0, 600),
       index: index + 1
     };
@@ -646,7 +649,7 @@ async function callOpenAIImageEdits(settings, payload) {
   form.set("response_format", "url");
   form.append("image", await imageSourceToBlob(payload.imageData), "primary.png");
   for (const [index, reference] of (payload.referenceImages || []).entries()) {
-    form.append("image", await imageSourceToBlob(reference.imageData), `reference-${index + 1}.png`);
+    form.append("image", await imageSourceToBlob(reference.annotatedImageData || reference.imageData), `reference-${index + 1}.png`);
   }
   if (payload.maskData?.startsWith("data:image/")) {
     form.set("mask", dataUrlToBlob(payload.maskData), "primary-mask.png");

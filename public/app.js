@@ -728,7 +728,7 @@ function renderRecentCreations() {
   $$("[data-recent-editor]", elements.recentMasonry).forEach((button) => {
     button.addEventListener("click", () => {
       const item = displayItems.find((entry) => String(entry.id) === button.dataset.recentEditor);
-      if (item?.image) openImageEditor(promptImageUrl(item.image), item.prompt);
+      if (item?.image) openImageEditor(promptImageUrl(item.image), item.prompt, item);
     });
   });
 }
@@ -774,7 +774,7 @@ function openRecentPreview(item, options = {}) {
   $("[data-preview-editor]", elements.modalLayer)?.addEventListener("click", () => {
     state.restoreWorksOnViewerClose = false;
     closeModal();
-    openImageEditor(imageUrl, item.prompt);
+    openImageEditor(imageUrl, item.prompt, item);
   });
   $("[data-preview-copy]", elements.modalLayer).addEventListener("click", async () => {
     await copyText(item.prompt);
@@ -1287,7 +1287,7 @@ function renderHistory() {
   $$("[data-edit-image]", elements.historyList).forEach((button) => {
     button.addEventListener("click", () => {
       const item = state.history.find((entry) => String(entry.id) === button.dataset.editImage);
-      if (item?.images?.[0]) openImageEditor(item.images[0], item.prompt);
+      if (item?.images?.[0]) openImageEditor(item.images[0], item.prompt, item);
     });
   });
   $$("[data-view-image]", elements.historyList).forEach((button) => {
@@ -1429,12 +1429,51 @@ function bindPromptCards(root) {
   });
 }
 
-function openImageEditor(imageUrl = "", prompt = "") {
+function openImageEditor(imageUrl = "", prompt = "", item = null) {
   state.editor.prompt = prompt || state.editor.prompt;
   setView("editor");
-  if (imageUrl) setEditorImage(imageUrl);
+  if (item?.editContext) {
+    restoreEditorFromEditContext(item.editContext, imageUrl);
+  } else if (imageUrl) {
+    setEditorImage(imageUrl);
+  }
   window.scrollTo({ top: 0, behavior: "auto" });
   setTimeout(() => elements.editorPromptInput?.focus(), 80);
+}
+
+function restoreEditorFromEditContext(context, fallbackImageUrl = "") {
+  const editContext = cloneEditContext(context);
+  const primaryImageData = editContext?.primaryImage?.imageData || fallbackImageUrl;
+  if (!primaryImageData) {
+    if (fallbackImageUrl) setEditorImage(fallbackImageUrl);
+    return;
+  }
+  const referenceImages = Array.isArray(editContext.referenceImages) ? editContext.referenceImages : [];
+  state.editor.images = [{
+    id: `edit_${Date.now()}_${Math.random().toString(36).slice(2)}`,
+    url: primaryImageData,
+    data: primaryImageData.startsWith("data:") ? primaryImageData : "",
+    name: text("primaryImage"),
+    isPrimary: true,
+    note: "",
+    history: editContext.primaryImage?.maskData ? [editContext.primaryImage.maskData] : []
+  }, ...referenceImages.map((reference, index) => {
+    const imageData = reference.imageData || reference.annotatedImageData || "";
+    return {
+      id: `edit_${Date.now()}_${Math.random().toString(36).slice(2)}_${index}`,
+      url: imageData,
+      data: imageData.startsWith("data:") ? imageData : "",
+      name: `${text("referenceImage")} ${index + 1}`,
+      isPrimary: false,
+      note: reference.note || "",
+      history: []
+    };
+  }).filter((image) => image.url)];
+  state.editor.consistency = editContext.editConsistency || "high";
+  state.editor.activeImageIndex = 0;
+  syncActiveEditorImage();
+  resetEditorInteraction();
+  renderEditor();
 }
 
 function renderEditor() {
@@ -2268,7 +2307,7 @@ async function loadMyWorks(forceReload = false) {
       if (!item?.images?.[0]) return;
       state.restoreWorksOnViewerClose = false;
       closeModal();
-      openImageEditor(item.images[0], item.prompt);
+      openImageEditor(item.images[0], item.prompt, item);
     });
   });
   $$("[data-work-view]", grid).forEach((button) => {
