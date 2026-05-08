@@ -1931,7 +1931,7 @@ a {
 }
 
 @media (min-width: 861px) {
-  .preview-actions [data-save-image] {
+  [data-save-image] {
     display: none;
   }
 }
