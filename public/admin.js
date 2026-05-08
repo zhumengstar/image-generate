@@ -587,26 +587,50 @@ function renderSettings() {
       <section class="card settings-card">
         <div class="settings-title">
           <div>
+            <span class="eyebrow">API Console</span>
             <h2>接口设置</h2>
-            <p>配置图像生成接口、积分规则和注册策略。</p>
+            <p>统一配置图片生成接口、提示词 AI 润色接口、积分规则和账号策略。</p>
           </div>
-          <span class="settings-badge">${settings.hasApiKey ? "已配置 Key" : "未配置 Key"}</span>
+          <div class="settings-status">
+            <span class="settings-badge ${settings.hasApiKey ? "" : "warning"}">${settings.hasApiKey ? "图片接口已配置" : "图片接口未配置"}</span>
+            <span class="settings-badge ${settings.promptPolishKeyMask && settings.promptPolishBaseUrl ? "" : "warning"}">${settings.promptPolishKeyMask && settings.promptPolishBaseUrl ? "润色接口已配置" : "润色接口未配置"}</span>
+          </div>
         </div>
         <form id="settingsForm" class="settings-form">
-          <div class="settings-group">
-            <h3>接口</h3>
-            <label>OpenAI API Key<input id="apiKeyInput" type="password" placeholder="${escapeHtml(settings.apiKeyMask || "不修改则留空")}"></label>
-            <label>API 地址<input id="apiBaseUrlInput" value="${escapeHtml(settings.apiBaseUrl || "")}" placeholder="https://api.example.com"></label>
-            <label>模型<input id="modelInput" value="${escapeHtml(settings.model || "GPT-IMAGE-2")}"></label>
+          <div class="settings-section-head">
+            <i class="ri-image-add-line"></i>
+            <div>
+              <h3>Image 图片生成接口</h3>
+              <p>用于首页生成、图片编辑和重新生成。</p>
+            </div>
           </div>
+          <div class="settings-group api-group">
+            <label>Image API Key<input id="apiKeyInput" type="password" placeholder="${escapeHtml(settings.apiKeyMask ? `当前：${settings.apiKeyMask}` : "粘贴图片生成接口 Key")}"></label>
+            <label>Image API 地址<input id="apiBaseUrlInput" value="${escapeHtml(settings.apiBaseUrl || "")}" placeholder="https://api.example.com 或 https://api.example.com/v1"></label>
+            <label>Image 模型<input id="modelInput" value="${escapeHtml(settings.model || "GPT-IMAGE-2")}" placeholder="gpt-image-2"></label>
+          </div>
+
+          <div class="settings-section-head">
+            <i class="ri-sparkling-2-line"></i>
+            <div>
+              <h3>大模型 AI 润色接口</h3>
+              <p>用于生成按钮旁边的提示词润色，可和图片接口使用不同服务商。</p>
+            </div>
+          </div>
+          <div class="settings-group api-group">
+            <label>大模型 API Key<input id="promptPolishApiKeyInput" type="password" placeholder="${escapeHtml(settings.promptPolishKeyMask ? `当前：${settings.promptPolishKeyMask}` : "粘贴 AI 润色接口 Key")}"></label>
+            <label>大模型 API 地址<input id="promptPolishBaseUrlInput" value="${escapeHtml(settings.promptPolishBaseUrl || "")}" placeholder="https://cliproxy.example.com 或 https://api.example.com/v1"></label>
+            <label>大模型模型<input id="promptPolishModelInput" value="${escapeHtml(settings.promptPolishModel || "gpt-5.5")}" placeholder="gpt-5.5"></label>
+          </div>
+
           <div class="settings-group compact-fields">
-            <h3>积分</h3>
+            <h3>积分与生成限制</h3>
             <label>注册送积分<input id="defaultCreditsInput" type="number" min="0" value="${Number(settings.defaultCredits ?? 10)}"></label>
             <label>每张图消耗积分<input id="generationCreditCostInput" type="number" min="0" value="${Number(settings.generationCreditCost ?? 1)}"></label>
             <label>单次最大张数<input id="maxImagesInput" type="number" min="1" max="4" value="${Number(settings.maxImagesPerRequest ?? 1)}"></label>
           </div>
           <div class="settings-group">
-            <h3>账号</h3>
+            <h3>账号策略</h3>
             <label class="switch-row">
               <input id="allowRegistrationInput" type="checkbox" ${settings.allowRegistration ? "checked" : ""}>
               <span></span>
@@ -622,22 +646,43 @@ function renderSettings() {
           </div>
           <div class="settings-actions">
             <button class="primary" type="submit">保存设置</button>
-            <button id="clearKeyBtn" class="secondary" type="button">清除 API Key</button>
+            <button id="clearKeyBtn" class="secondary" type="button">清除 Image Key</button>
+            <button id="clearPolishKeyBtn" class="secondary" type="button">清除润色 Key</button>
           </div>
         </form>
       </section>
       <section class="card settings-help">
-        <h2>说明</h2>
+        <div class="settings-help-head">
+          <span class="eyebrow">Overview</span>
+          <h2>配置说明</h2>
+        </div>
+        <div class="settings-summary">
+          <div>
+            <span>Image 模型</span>
+            <strong>${escapeHtml(settings.model || "GPT-IMAGE-2")}</strong>
+          </div>
+          <div>
+            <span>润色模型</span>
+            <strong>${escapeHtml(settings.promptPolishModel || "gpt-5.5")}</strong>
+          </div>
+          <div>
+            <span>每图积分</span>
+            <strong>${Number(settings.generationCreditCost ?? 1)}</strong>
+          </div>
+        </div>
         <div class="help-list">
+          <p><strong>图片接口</strong><span>负责生图和编辑图。API 地址支持填写服务商根地址、/v1、/images/generations 或 /images/edits。</span></p>
+          <p><strong>大模型接口</strong><span>负责“润色”按钮。API 地址支持服务商根地址、/v1 或 /chat/completions。</span></p>
+          <p><strong>Key 保存规则</strong><span>输入框留空表示保留当前 Key；点击清除按钮才会删除对应 Key。</span></p>
           <p><strong>积分扣除</strong><span>前台生图会按“每张图消耗积分”扣除积分，失败会自动退回。</span></p>
           <p><strong>每日签到</strong><span>用户每天可在前台签到领取 1 积分。</span></p>
-          <p><strong>用户积分</strong><span>管理员可在用户管理中直接调整用户当前积分。</span></p>
         </div>
       </section>
     </div>
   `;
   $("#settingsForm").addEventListener("submit", saveSettings);
   $("#clearKeyBtn").addEventListener("click", clearKey);
+  $("#clearPolishKeyBtn").addEventListener("click", clearPolishKey);
 }
 
 async function loadPanel() {
@@ -793,6 +838,9 @@ async function saveSettings(event) {
         openaiApiKey: $("#apiKeyInput").value.trim(),
         apiBaseUrl: $("#apiBaseUrlInput").value.trim(),
         model: $("#modelInput").value.trim(),
+        promptPolishApiKey: $("#promptPolishApiKeyInput").value.trim(),
+        promptPolishBaseUrl: $("#promptPolishBaseUrlInput").value.trim(),
+        promptPolishModel: $("#promptPolishModelInput").value.trim(),
         defaultCredits: Number($("#defaultCreditsInput").value || 0),
         generationCreditCost: Number($("#generationCreditCostInput").value || 0),
         maxImagesPerRequest: Number($("#maxImagesInput").value || 1),
@@ -814,6 +862,19 @@ async function clearKey() {
       body: JSON.stringify({ clearApiKey: true })
     });
     toast("API Key 已清除");
+    renderSettings();
+  } catch (error) {
+    toast(error.message);
+  }
+}
+
+async function clearPolishKey() {
+  try {
+    state.settings = await api("/api/admin/settings", {
+      method: "PATCH",
+      body: JSON.stringify({ clearPromptPolishKey: true })
+    });
+    toast("润色 Key 已清除");
     renderSettings();
   } catch (error) {
     toast(error.message);

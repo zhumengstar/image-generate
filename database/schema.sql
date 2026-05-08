@@ -9,6 +9,9 @@ CREATE TABLE IF NOT EXISTS app_settings (
   openai_api_key TEXT NULL,
   api_base_url VARCHAR(255) NOT NULL DEFAULT '',
   model VARCHAR(80) NOT NULL,
+  prompt_polish_api_key TEXT NULL,
+  prompt_polish_base_url VARCHAR(255) NOT NULL DEFAULT '',
+  prompt_polish_model VARCHAR(80) NOT NULL DEFAULT 'gpt-5.5',
   default_credits INT UNSIGNED NOT NULL DEFAULT 10,
   generation_credit_cost INT UNSIGNED NOT NULL DEFAULT 1,
   allow_registration TINYINT(1) NOT NULL DEFAULT 1,
@@ -102,6 +105,6 @@ CREATE TABLE IF NOT EXISTS generation_requests (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 INSERT IGNORE INTO app_settings
-  (id, openai_api_key, api_base_url, model, default_credits, generation_credit_cost, allow_registration, require_approval, max_images_per_request)
+  (id, openai_api_key, api_base_url, model, prompt_polish_api_key, prompt_polish_base_url, prompt_polish_model, default_credits, generation_credit_cost, allow_registration, require_approval, max_images_per_request)
 VALUES
-  (1, '', '', 'GPT-IMAGE-2', 10, 1, 1, 0, 1);
+  (1, '', '', 'GPT-IMAGE-2', '', '', 'gpt-5.5', 10, 1, 1, 0, 1);

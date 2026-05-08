@@ -51,6 +51,9 @@ function mapSettings(row = {}) {
     openaiApiKey: row.openai_api_key || "",
     apiBaseUrl: row.api_base_url || process.env.AI_API_BASE_URL || process.env.OPENAI_BASE_URL || "",
     model: row.model || defaultModel,
+    promptPolishApiKey: row.prompt_polish_api_key || process.env.PROMPT_POLISH_API_KEY || "",
+    promptPolishBaseUrl: row.prompt_polish_base_url || process.env.PROMPT_POLISH_BASE_URL || "",
+    promptPolishModel: row.prompt_polish_model || process.env.PROMPT_POLISH_MODEL || "gpt-5.5",
     defaultCredits: Number(row.default_credits ?? 10),
     generationCreditCost: Number(row.generation_credit_cost ?? 1),
     allowRegistration: Boolean(row.allow_registration ?? 1),
@@ -163,6 +166,9 @@ async function runMigrations() {
       openai_api_key TEXT NULL,
       api_base_url VARCHAR(255) NOT NULL DEFAULT '',
       model VARCHAR(80) NOT NULL,
+      prompt_polish_api_key TEXT NULL,
+      prompt_polish_base_url VARCHAR(255) NOT NULL DEFAULT '',
+      prompt_polish_model VARCHAR(80) NOT NULL DEFAULT 'gpt-5.5',
       default_credits INT UNSIGNED NOT NULL DEFAULT 10,
       generation_credit_cost INT UNSIGNED NOT NULL DEFAULT 1,
       allow_registration TINYINT(1) NOT NULL DEFAULT 1,
@@ -176,6 +182,21 @@ async function runMigrations() {
   const [settingsApiBaseColumns] = await db.execute("SHOW COLUMNS FROM app_settings LIKE 'api_base_url'");
   if (!settingsApiBaseColumns.length) {
     await db.query("ALTER TABLE app_settings ADD COLUMN api_base_url VARCHAR(255) NOT NULL DEFAULT '' AFTER openai_api_key");
+  }
+
+  const [settingsPolishKeyColumns] = await db.execute("SHOW COLUMNS FROM app_settings LIKE 'prompt_polish_api_key'");
+  if (!settingsPolishKeyColumns.length) {
+    await db.query("ALTER TABLE app_settings ADD COLUMN prompt_polish_api_key TEXT NULL AFTER model");
+  }
+
+  const [settingsPolishBaseColumns] = await db.execute("SHOW COLUMNS FROM app_settings LIKE 'prompt_polish_base_url'");
+  if (!settingsPolishBaseColumns.length) {
+    await db.query("ALTER TABLE app_settings ADD COLUMN prompt_polish_base_url VARCHAR(255) NOT NULL DEFAULT '' AFTER prompt_polish_api_key");
+  }
+
+  const [settingsPolishModelColumns] = await db.execute("SHOW COLUMNS FROM app_settings LIKE 'prompt_polish_model'");
+  if (!settingsPolishModelColumns.length) {
+    await db.query("ALTER TABLE app_settings ADD COLUMN prompt_polish_model VARCHAR(80) NOT NULL DEFAULT 'gpt-5.5' AFTER prompt_polish_base_url");
   }
 
   const [settingsCostColumns] = await db.execute("SHOW COLUMNS FROM app_settings LIKE 'generation_credit_cost'");
@@ -289,12 +310,15 @@ async function runMigrations() {
 
   await db.execute(
     `INSERT IGNORE INTO app_settings
-      (id, openai_api_key, api_base_url, model, default_credits, generation_credit_cost, allow_registration, require_approval, max_images_per_request)
-     VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      (id, openai_api_key, api_base_url, model, prompt_polish_api_key, prompt_polish_base_url, prompt_polish_model, default_credits, generation_credit_cost, allow_registration, require_approval, max_images_per_request)
+     VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       process.env.AI_API_KEY || process.env.OPENAI_API_KEY || "",
       process.env.AI_API_BASE_URL || process.env.OPENAI_BASE_URL || "",
       process.env.IMAGE_MODEL || defaultModel,
+      process.env.PROMPT_POLISH_API_KEY || "",
+      process.env.PROMPT_POLISH_BASE_URL || "",
+      process.env.PROMPT_POLISH_MODEL || "gpt-5.5",
       intEnv("DEFAULT_CREDITS", 10),
       intEnv("GENERATION_CREDIT_COST", 1),
       boolEnv("ALLOW_REGISTRATION", true) ? 1 : 0,
@@ -308,6 +332,28 @@ async function runMigrations() {
     await db.execute(
       "UPDATE app_settings SET api_base_url = ? WHERE id = 1 AND api_base_url = ''",
       [envApiBaseUrl.replace(/\/+$/, "")]
+    );
+  }
+
+  const envPolishBaseUrl = process.env.PROMPT_POLISH_BASE_URL || "";
+  if (envPolishBaseUrl) {
+    await db.execute(
+      "UPDATE app_settings SET prompt_polish_base_url = ? WHERE id = 1 AND prompt_polish_base_url = ''",
+      [envPolishBaseUrl.replace(/\/+$/, "")]
+    );
+  }
+
+  if (process.env.PROMPT_POLISH_API_KEY) {
+    await db.execute(
+      "UPDATE app_settings SET prompt_polish_api_key = ? WHERE id = 1 AND (prompt_polish_api_key IS NULL OR prompt_polish_api_key = '')",
+      [process.env.PROMPT_POLISH_API_KEY]
+    );
+  }
+
+  if (process.env.PROMPT_POLISH_MODEL) {
+    await db.execute(
+      "UPDATE app_settings SET prompt_polish_model = ? WHERE id = 1 AND (prompt_polish_model IS NULL OR prompt_polish_model = '')",
+      [process.env.PROMPT_POLISH_MODEL]
     );
   }
 }
@@ -342,6 +388,9 @@ async function updateSettings(patch) {
     openaiApiKey: "openai_api_key",
     apiBaseUrl: "api_base_url",
     model: "model",
+    promptPolishApiKey: "prompt_polish_api_key",
+    promptPolishBaseUrl: "prompt_polish_base_url",
+    promptPolishModel: "prompt_polish_model",
     defaultCredits: "default_credits",
     generationCreditCost: "generation_credit_cost",
     allowRegistration: "allow_registration",

@@ -40,7 +40,7 @@ const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 7;
 const MAX_BODY_BYTES = 16 * 1024 * 1024;
 const DEFAULT_MODEL = "GPT-IMAGE-2";
 const CHECKIN_CREDIT = Number.parseInt(process.env.CHECKIN_CREDIT || "1", 10) || 1;
-const PROMPT_POLISH_MODEL = process.env.PROMPT_POLISH_MODEL || "gpt-5.5";
+const DEFAULT_PROMPT_POLISH_MODEL = "gpt-5.5";
 
 const generationWindows = new Map();
 
@@ -186,12 +186,20 @@ function getOpenAIEditEndpoint(settings = {}) {
   return `${cleanBase}/v1/images/edits`;
 }
 
-function getPromptPolishBaseUrl() {
-  return String(process.env.PROMPT_POLISH_BASE_URL || "").trim().replace(/\/+$/, "");
+function getPromptPolishApiKey(settings = {}) {
+  return String(settings.promptPolishApiKey || process.env.PROMPT_POLISH_API_KEY || "").trim();
 }
 
-function getPromptPolishEndpoint() {
-  const cleanBase = getPromptPolishBaseUrl();
+function getPromptPolishBaseUrl(settings = {}) {
+  return String(settings.promptPolishBaseUrl || process.env.PROMPT_POLISH_BASE_URL || "").trim().replace(/\/+$/, "");
+}
+
+function getPromptPolishModel(settings = {}) {
+  return String(settings.promptPolishModel || process.env.PROMPT_POLISH_MODEL || DEFAULT_PROMPT_POLISH_MODEL).trim() || DEFAULT_PROMPT_POLISH_MODEL;
+}
+
+function getPromptPolishEndpoint(settings = {}) {
+  const cleanBase = getPromptPolishBaseUrl(settings);
   if (!cleanBase) return "";
   if (cleanBase.endsWith("/chat/completions")) return cleanBase;
   if (cleanBase.endsWith("/v1")) return `${cleanBase}/chat/completions`;
@@ -213,10 +221,14 @@ function publicSettings(settings) {
 
 function adminSettings(settings) {
   const key = getOpenAIApiKey(settings);
+  const polishKey = getPromptPolishApiKey(settings);
   return {
     ...publicSettings(settings),
     apiBaseUrl: getOpenAIBaseUrl(settings),
-    apiKeyMask: key ? `${key.slice(0, 7)}...${key.slice(-4)}` : ""
+    apiKeyMask: key ? `${key.slice(0, 7)}...${key.slice(-4)}` : "",
+    promptPolishBaseUrl: getPromptPolishBaseUrl(settings),
+    promptPolishModel: getPromptPolishModel(settings),
+    promptPolishKeyMask: polishKey ? `${polishKey.slice(0, 7)}...${polishKey.slice(-4)}` : ""
   };
 }
 
@@ -533,9 +545,9 @@ function cleanPolishedPrompt(value) {
     .slice(0, 2000);
 }
 
-async function polishImagePrompt(prompt) {
-  const apiKey = String(process.env.PROMPT_POLISH_API_KEY || "").trim();
-  const endpoint = getPromptPolishEndpoint();
+async function polishImagePrompt(settings, prompt) {
+  const apiKey = getPromptPolishApiKey(settings);
+  const endpoint = getPromptPolishEndpoint(settings);
   if (!apiKey || !endpoint) return prompt;
 
   const response = await fetch(endpoint, {
@@ -545,7 +557,7 @@ async function polishImagePrompt(prompt) {
       "Content-Type": "application/json"
     },
     body: JSON.stringify({
-      model: PROMPT_POLISH_MODEL,
+      model: getPromptPolishModel(settings),
       temperature: 0.4,
       messages: [
         {
@@ -915,10 +927,11 @@ async function routeApi(req, res, url) {
     ensureAuthenticated(current);
     const body = await readJsonBody(req);
     const prompt = cleanPrompt(body.prompt);
-    if (!getPromptPolishEndpoint() || !String(process.env.PROMPT_POLISH_API_KEY || "").trim()) {
+    const settings = await store.getSettings();
+    if (!getPromptPolishEndpoint(settings) || !getPromptPolishApiKey(settings)) {
       throw httpError("Prompt polish API is not configured", 400);
     }
-    const polishedPrompt = await polishImagePrompt(prompt);
+    const polishedPrompt = await polishImagePrompt(settings, prompt);
     return sendJson(res, 200, { prompt: polishedPrompt });
   }
 
@@ -953,11 +966,22 @@ async function routeApi(req, res, url) {
       if (key) patch.openaiApiKey = key;
     }
     if (body.clearApiKey === true) patch.openaiApiKey = "";
+    if (body.clearPromptPolishKey === true) patch.promptPolishApiKey = "";
     if (typeof body.apiBaseUrl === "string") {
       patch.apiBaseUrl = body.apiBaseUrl.trim().replace(/\/+$/, "").slice(0, 255);
     }
     if (typeof body.model === "string" && body.model.trim()) {
       patch.model = body.model.trim().slice(0, 80);
+    }
+    if (typeof body.promptPolishApiKey === "string") {
+      const key = body.promptPolishApiKey.trim();
+      if (key) patch.promptPolishApiKey = key;
+    }
+    if (typeof body.promptPolishBaseUrl === "string") {
+      patch.promptPolishBaseUrl = body.promptPolishBaseUrl.trim().replace(/\/+$/, "").slice(0, 255);
+    }
+    if (typeof body.promptPolishModel === "string" && body.promptPolishModel.trim()) {
+      patch.promptPolishModel = body.promptPolishModel.trim().slice(0, 80);
     }
     if (body.defaultCredits !== undefined) {
       patch.defaultCredits = Math.max(0, Math.min(10000, Number.parseInt(body.defaultCredits, 10) || 0));
