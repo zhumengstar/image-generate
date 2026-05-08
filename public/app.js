@@ -46,7 +46,7 @@ const state = {
     prompt: "",
     tool: "brush",
     color: "#7c3aed",
-    consistency: "medium",
+    consistency: "high",
     zoom: 1,
     history: [],
     pointerDown: false,
@@ -1374,7 +1374,7 @@ function renderEditor() {
     low: "consistencyLow",
     medium: "consistencyMedium",
     high: "consistencyHigh"
-  }[state.editor.consistency] || "consistencyMedium";
+  }[state.editor.consistency] || "consistencyHigh";
   const consistencyCurrent = $("[data-editor-consistency-current]", elements.editorView);
   if (consistencyCurrent) consistencyCurrent.textContent = text(consistencyKey);
   $$("[data-editor-consistency-value]", elements.editorView).forEach((button) => {
