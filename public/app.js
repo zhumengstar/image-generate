@@ -128,6 +128,7 @@ const i18n = {
     totalSources: "数据源",
     loadMore: "加载更多灵感",
     loadingPrompts: "正在加载提示词库...",
+    loadingWorks: "正在加载作品...",
     loginTitle: "登录以继续创作",
     registerTitle: "注册账号",
     authGift: "注册登录以继续创作",
@@ -259,6 +260,7 @@ const i18n = {
     totalSources: "Data Sources",
     loadMore: "Load More Inspiration",
     loadingPrompts: "Loading prompt library...",
+    loadingWorks: "Loading works...",
     loginTitle: "Login to continue",
     registerTitle: "Create account",
     authGift: "Sign in to continue creating",
@@ -1280,14 +1282,14 @@ async function regenerateItem(item) {
   }
 }
 
-async function loadHistory() {
+async function loadHistory({ limit = 80 } = {}) {
   if (!state.user) {
     state.history = [];
     state.historyLoaded = true;
     return;
   }
   try {
-    const data = await api("/api/images/history");
+    const data = await api(`/api/images/history?limit=${encodeURIComponent(limit)}`);
     state.history = [...(data.generations || [])]
       .reverse()
       .map((generation) => ({
@@ -2371,7 +2373,7 @@ function openMyWorksModal() {
         </div>
         <button class="ghost-button works-refresh" type="button" data-works-refresh><i class="ri-refresh-line"></i></button>
       </div>
-      <div id="worksGrid" class="works-grid"><div class="empty-message">${text("loadingPrompts")}</div></div>
+      <div id="worksGrid" class="works-grid"><div class="empty-message">${text("loadingWorks")}</div></div>
     </section>
   `);
   $("[data-works-refresh]", elements.modalLayer).addEventListener("click", () => loadMyWorks(true));
@@ -2381,8 +2383,19 @@ function openMyWorksModal() {
 async function loadMyWorks(forceReload = false) {
   const grid = $("#worksGrid", elements.modalLayer);
   if (!grid) return;
-  grid.innerHTML = `<div class="empty-message">${text("loadingPrompts")}</div>`;
-  if (forceReload || !state.historyLoaded) await loadHistory();
+  if (state.history.length && !forceReload) {
+    renderWorksItems(grid);
+  } else {
+    grid.innerHTML = `<div class="empty-message">${text("loadingWorks")}</div>`;
+  }
+  if (forceReload || !state.historyLoaded) {
+    await loadHistory({ limit: 80 });
+    if (!$("#worksGrid", elements.modalLayer)) return;
+  }
+  renderWorksItems(grid);
+}
+
+function renderWorksItems(grid) {
   const items = [...state.history]
     .filter((item) => item.status === "done" && item.images?.[0])
     .sort((a, b) => new Date(b.time || 0) - new Date(a.time || 0));
@@ -2430,7 +2443,7 @@ function renderWorksBatch(grid) {
     const nextOffset = offset + batch.length;
     grid.dataset.worksOffset = String(nextOffset);
     if (nextOffset < items.length) {
-      grid.insertAdjacentHTML("beforeend", `<div class="works-sentinel"><span>${text("loadingPrompts")}</span></div>`);
+      grid.insertAdjacentHTML("beforeend", `<div class="works-sentinel"><span>${text("loadingWorks")}</span></div>`);
       observeWorksSentinel(grid);
     }
   });

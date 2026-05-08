@@ -1144,7 +1144,8 @@ async function routeApi(req, res, url) {
   if (req.method === "GET" && url.pathname === "/api/images/history") {
     const current = await getCurrentUser(req);
     ensureAuthenticated(current);
-    const generations = (await store.listGenerationsForUser(current.user, 200)).map((generation) => ({
+    const limit = Math.max(1, Math.min(200, Number.parseInt(url.searchParams.get("limit") || "80", 10) || 80));
+    const generations = (await store.listGenerationsForUser(current.user, limit)).map((generation) => ({
       ...generation,
       usage: undefined,
       editContext: generation.usage?.editContext || null,
