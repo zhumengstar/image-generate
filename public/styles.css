@@ -2942,6 +2942,9 @@ a {
   }
 
   .composer-bar {
+    display: grid;
+    grid-template-columns: 48px minmax(0, 1fr) 70px;
+    grid-template-rows: repeat(2, 34px);
     align-items: center;
     gap: 8px;
   }
@@ -2955,21 +2958,39 @@ a {
     padding-inline: 10px;
   }
 
+  .add-reference-button {
+    grid-column: 1;
+    grid-row: 1 / span 2;
+  }
+
+  .prompt-box {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    align-self: center;
+    min-width: 0;
+    font-size: 15px;
+  }
+
   .send-button,
   .polish-button {
-    min-height: 40px;
-    padding-inline: 8px;
-    border-radius: 12px;
+    min-height: 34px;
+    height: 34px;
+    min-width: 0;
+    width: 70px;
+    padding-inline: 7px;
+    border-radius: 11px;
     font-size: 12px;
     gap: 4px;
   }
 
   .polish-button {
-    min-width: 72px;
+    grid-column: 3;
+    grid-row: 1;
   }
 
   .send-button {
-    min-width: 62px;
+    grid-column: 3;
+    grid-row: 2;
   }
 
   .polish-button i {
@@ -2977,11 +2998,6 @@ a {
   }
 
   .send-button i {
-    font-size: 15px;
-  }
-
-  .prompt-box {
-    min-width: 0;
     font-size: 15px;
   }
 
