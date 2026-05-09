@@ -1234,8 +1234,10 @@ async function routeApi(req, res, url) {
     ensureAuthenticated(current);
     const limit = Math.max(1, Math.min(200, Number.parseInt(url.searchParams.get("limit") || "80", 10) || 80));
     const offset = Math.max(0, Number.parseInt(url.searchParams.get("offset") || "0", 10) || 0);
-    const includeAllUsers = current.user.role === "admin";
-    const generations = (await store.listGenerationsForUser(current.user.id, {
+    const requestedUserId = String(url.searchParams.get("userId") || "").trim();
+    const targetUserId = current.user.role === "admin" && requestedUserId ? requestedUserId : current.user.id;
+    const includeAllUsers = current.user.role === "admin" && !requestedUserId;
+    const generations = (await store.listGenerationsForUser(targetUserId, {
       limit,
       offset,
       includeAllUsers,

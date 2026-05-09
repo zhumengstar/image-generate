@@ -41,6 +41,13 @@ const state = {
   historyNextOffset: 0,
   historyLoading: false,
   historyLoadPromise: null,
+  worksHistory: [],
+  worksFullyLoaded: false,
+  worksNextOffset: 0,
+  worksLoading: false,
+  worksUserFilter: "",
+  worksUsers: [],
+  worksUsersLoaded: false,
   restoreWorksOnViewerClose: false,
   restorePreviewOnViewerClose: null,
   editor: {
@@ -1417,6 +1424,53 @@ async function loadHistory({ limit = HISTORY_PRELOAD_LIMIT, offset = 0, append =
   }
 }
 
+function resetWorksHistory() {
+  state.worksHistory = [];
+  state.worksFullyLoaded = false;
+  state.worksNextOffset = 0;
+}
+
+function mergeWorksItems(items, append = false) {
+  const merged = new Map();
+  const source = append ? [...state.worksHistory, ...items] : items;
+  source.forEach((item) => merged.set(String(item.id), item));
+  state.worksHistory = [...merged.values()].sort((a, b) => new Date(a.time || 0) - new Date(b.time || 0));
+}
+
+async function loadWorksHistory({ limit, offset = 0, append = false } = {}) {
+  if (!state.user || state.worksLoading) return;
+  state.worksLoading = true;
+  try {
+    const params = new URLSearchParams({
+      limit: String(limit || HISTORY_PRELOAD_LIMIT),
+      offset: String(offset)
+    });
+    if (state.user.role === "admin" && state.worksUserFilter) {
+      params.set("userId", state.worksUserFilter);
+    }
+    const data = await api(`/api/images/history?${params.toString()}`);
+    const items = [...(data.generations || [])].reverse().map(mapHistoryGeneration);
+    mergeWorksItems(items, append || offset > 0);
+    state.worksNextOffset = Number(data.nextOffset ?? state.worksHistory.length);
+    state.worksFullyLoaded = !data.hasMore || items.length < Number(params.get("limit"));
+  } catch (error) {
+    showToast(error.message, "ri-error-warning-line");
+  } finally {
+    state.worksLoading = false;
+  }
+}
+
+async function loadWorksUsers() {
+  if (state.user?.role !== "admin" || state.worksUsersLoaded) return;
+  try {
+    const data = await api("/api/admin/users");
+    state.worksUsers = data.users || [];
+    state.worksUsersLoaded = true;
+  } catch (error) {
+    showToast(error.message, "ri-error-warning-line");
+  }
+}
+
 function renderHistory() {
   let lastDate = "";
   elements.historyList.innerHTML = state.history.map((item) => {
@@ -2473,12 +2527,23 @@ function openMyWorksModal() {
           <h2>${text("myWorks")}</h2>
           <p>${state.lang === "zh" ? "查看最近生成记录，继续编辑或再次生成。" : "Review recent generations, edit, or regenerate."}</p>
         </div>
-        <button class="ghost-button works-refresh" type="button" data-works-refresh><i class="ri-refresh-line"></i></button>
+        <div class="works-tools">
+          ${state.user.role === "admin" ? `
+            <label class="works-user-filter">
+              <span>${state.lang === "zh" ? "用户" : "User"}</span>
+              <select data-works-user-filter>
+                <option value="">${state.lang === "zh" ? "全部用户" : "All users"}</option>
+              </select>
+            </label>
+          ` : ""}
+          <button class="ghost-button works-refresh" type="button" data-works-refresh><i class="ri-refresh-line"></i></button>
+        </div>
       </div>
       <div id="worksGrid" class="works-grid"><div class="empty-message">${text("loadingWorks")}</div></div>
     </section>
   `);
   $("[data-works-refresh]", elements.modalLayer).addEventListener("click", () => loadMyWorks(true));
+  setupWorksUserFilter();
   loadMyWorks(false);
 }
 
@@ -2486,25 +2551,41 @@ async function loadMyWorks(forceReload = false) {
   const grid = $("#worksGrid", elements.modalLayer);
   if (!grid) return;
   if (forceReload) {
-    state.history = [];
-    state.historyLoaded = false;
-    state.historyFullyLoaded = false;
-    state.historyNextOffset = 0;
+    resetWorksHistory();
   }
-  if (state.history.length && !forceReload) {
+  if (state.worksHistory.length && !forceReload) {
     renderWorksItems(grid);
   } else {
     grid.innerHTML = `<div class="empty-message">${text("loadingWorks")}</div>`;
   }
-  if (forceReload || !state.history.length) {
-    await loadHistory({ limit: getWorksBatchSize(grid), offset: 0 });
+  if (forceReload || !state.worksHistory.length) {
+    await loadWorksHistory({ limit: getWorksBatchSize(grid), offset: 0 });
     if (!$("#worksGrid", elements.modalLayer)) return;
   }
   renderWorksItems(grid);
 }
 
+async function setupWorksUserFilter() {
+  const select = $("[data-works-user-filter]", elements.modalLayer);
+  if (!select) return;
+  select.value = state.worksUserFilter || "";
+  select.addEventListener("change", () => {
+    state.worksUserFilter = select.value;
+    loadMyWorks(true);
+  });
+  await loadWorksUsers();
+  if (!$("[data-works-user-filter]", elements.modalLayer)) return;
+  select.innerHTML = `
+    <option value="">${state.lang === "zh" ? "全部用户" : "All users"}</option>
+    ${state.worksUsers.map((user) => `
+      <option value="${escapeHtml(user.id)}">${escapeHtml(user.name || user.email)}${user.email ? ` · ${escapeHtml(user.email)}` : ""}</option>
+    `).join("")}
+  `;
+  select.value = state.worksUserFilter || "";
+}
+
 function worksItemsFromHistory() {
-  return [...state.history]
+  return [...state.worksHistory]
     .filter((item) => item.status === "done" && item.images?.[0])
     .sort((a, b) => new Date(b.time || 0) - new Date(a.time || 0));
 }
@@ -2512,10 +2593,10 @@ function worksItemsFromHistory() {
 function renderWorksItems(grid) {
   const items = worksItemsFromHistory();
   if (!items.length) {
-    grid.innerHTML = state.historyFullyLoaded
+    grid.innerHTML = state.worksFullyLoaded
       ? `<div class="empty-message">${text("emptyWorks")}</div>`
       : `<div class="works-sentinel"><span>${text("loadingWorks")}</span></div>`;
-    if (!state.historyFullyLoaded) observeWorksSentinel(grid);
+    if (!state.worksFullyLoaded) observeWorksSentinel(grid);
     return;
   }
   grid._worksItems = items;
@@ -2600,7 +2681,7 @@ function renderWorksBatch(grid) {
     hydrateWorksImages(grid);
     const nextOffset = offset + batch.length;
     grid.dataset.worksOffset = String(nextOffset);
-    if (nextOffset < items.length || !state.historyFullyLoaded) {
+    if (nextOffset < items.length || !state.worksFullyLoaded) {
       grid.insertAdjacentHTML("beforeend", `<div class="works-sentinel"><span>${text("loadingWorks")}</span></div>`);
       observeWorksSentinel(grid);
     }
@@ -2638,17 +2719,17 @@ function loadOrRenderMoreWorks(grid) {
     renderWorksBatch(grid);
     return;
   }
-  if (!state.historyFullyLoaded) loadMoreWorks(grid);
+  if (!state.worksFullyLoaded) loadMoreWorks(grid);
 }
 
 async function loadMoreWorks(grid) {
-  if (!grid || grid.dataset.loadingMore === "1" || state.historyFullyLoaded) return;
+  if (!grid || grid.dataset.loadingMore === "1" || state.worksFullyLoaded) return;
   grid.dataset.loadingMore = "1";
   const previousCount = grid._worksItems?.length || 0;
   try {
-    await loadHistory({
+    await loadWorksHistory({
       limit: getWorksBatchSize(grid),
-      offset: state.historyNextOffset || state.history.length,
+      offset: state.worksNextOffset || state.worksHistory.length,
       append: true
     });
     if (!$("#worksGrid", elements.modalLayer)) return;
@@ -2666,7 +2747,7 @@ function bindWorksGrid(grid) {
   grid.addEventListener("click", (event) => {
     const retryButton = event.target.closest("[data-work-retry]");
     if (retryButton) {
-      const item = state.history.find((entry) => String(entry.id) === retryButton.dataset.workRetry);
+      const item = grid._worksItems?.find((entry) => String(entry.id) === retryButton.dataset.workRetry);
       if (!item) return;
       state.restoreWorksOnViewerClose = false;
       closeModal();
@@ -2676,7 +2757,7 @@ function bindWorksGrid(grid) {
 
     const editorButton = event.target.closest("[data-work-editor]");
     if (editorButton) {
-      const item = state.history.find((entry) => String(entry.id) === editorButton.dataset.workEditor);
+      const item = grid._worksItems?.find((entry) => String(entry.id) === editorButton.dataset.workEditor);
       if (!item?.images?.[0]) return;
       state.restoreWorksOnViewerClose = false;
       closeModal();
@@ -2686,7 +2767,7 @@ function bindWorksGrid(grid) {
 
     const viewButton = event.target.closest("[data-work-view]");
     if (viewButton) {
-      const item = state.history.find((entry) => String(entry.id) === viewButton.dataset.workView);
+      const item = grid._worksItems?.find((entry) => String(entry.id) === viewButton.dataset.workView);
       if (item?.images?.[0]) {
         openRecentPreview({
           id: item.id,
@@ -2706,7 +2787,8 @@ function bindWorksGrid(grid) {
 }
 
 async function deleteWork(id) {
-  const item = state.history.find((entry) => String(entry.id) === String(id));
+  const item = state.worksHistory.find((entry) => String(entry.id) === String(id))
+    || state.history.find((entry) => String(entry.id) === String(id));
   if (!item) return;
   const confirmed = await confirmAction({
     title: state.lang === "zh" ? "删除作品" : "Delete work",
@@ -2719,6 +2801,7 @@ async function deleteWork(id) {
   if (!confirmed) return;
   try {
     await api(`/api/images/${encodeURIComponent(id)}`, { method: "DELETE" });
+    state.worksHistory = state.worksHistory.filter((entry) => String(entry.id) !== String(id));
     state.history = state.history.filter((entry) => String(entry.id) !== String(id));
     renderHistory();
     renderRecentCreations();
