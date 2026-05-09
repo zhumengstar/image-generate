@@ -1,5 +1,7 @@
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
+const ADMIN_CACHE_KEY = "image2creat.adminCache.v1";
+const ADMIN_REFRESH_INTERVAL = 30000;
 
 const state = {
   user: null,
@@ -18,7 +20,13 @@ const state = {
   userSort: { key: "role", dir: "asc" },
   selectedRecords: new Set(),
   selectedUsers: new Set(),
-  loadingView: ""
+  loadingView: "",
+  lastRefreshAt: 0,
+  panelLoaded: {
+    records: false,
+    users: false,
+    settings: false
+  }
 };
 
 async function api(path, options = {}) {
@@ -219,7 +227,58 @@ function renderAdmin() {
   renderPanel();
 }
 
+function readAdminCache() {
+  try {
+    const raw = localStorage.getItem(ADMIN_CACHE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+function restoreAdminCache() {
+  const cache = readAdminCache();
+  if (!cache || cache.userId !== state.user?.id) return;
+  if (Array.isArray(cache.records)) {
+    state.records = cache.records;
+    state.panelLoaded.records = true;
+  }
+  if (Array.isArray(cache.users)) {
+    state.users = cache.users;
+    state.panelLoaded.users = true;
+  }
+  if (cache.settings && typeof cache.settings === "object") {
+    state.settings = cache.settings;
+    state.modelOptions.image = cache.settings.imageModels || [];
+    state.modelOptions.polish = cache.settings.polishModels || [];
+    state.panelLoaded.settings = true;
+  }
+}
+
+function writeAdminCache(view) {
+  try {
+    const cache = readAdminCache() || {};
+    cache.userId = state.user?.id || "";
+    cache.updatedAt = Date.now();
+    if (view === "records") cache.records = state.records;
+    if (view === "users") cache.users = state.users;
+    if (view === "settings") cache.settings = state.settings;
+    localStorage.setItem(ADMIN_CACHE_KEY, JSON.stringify(cache));
+  } catch {
+    // Storage can be unavailable in private mode; the admin page should still work.
+  }
+}
+
+function clearAdminCache() {
+  try {
+    localStorage.removeItem(ADMIN_CACHE_KEY);
+  } catch {
+    // Ignore storage failures.
+  }
+}
+
 function renderPanel() {
+  if (!state.panelLoaded[state.view]) return renderPanelLoading();
   if (state.view === "records") return renderRecords();
   if (state.view === "users") return renderUsers();
   renderSettings();
@@ -239,20 +298,8 @@ function renderPanelLoading(label = "加载中...") {
 async function switchAdminView(nextView) {
   if (!nextView || nextView === state.view || state.loadingView === nextView) return;
   state.view = nextView;
-  state.loadingView = nextView;
   renderAdmin();
-  renderPanelLoading("正在加载...");
-  try {
-    await loadPanel(nextView);
-    if (state.view === nextView) renderPanel();
-  } catch (error) {
-    if (state.view === nextView) {
-      $("#panel").innerHTML = `<div class="card empty">${escapeHtml(error.message)}</div>`;
-    }
-    toast(error.message);
-  } finally {
-    if (state.loadingView === nextView) state.loadingView = "";
-  }
+  refreshPanel(nextView, { showLoading: !state.panelLoaded[nextView] });
 }
 
 function matchesSearch(values, query) {
@@ -810,7 +857,34 @@ async function loadPanel(view = state.view) {
     state.modelOptions.image = state.settings.imageModels || [];
     state.modelOptions.polish = state.settings.polishModels || [];
   }
+  state.panelLoaded[view] = true;
+  writeAdminCache(view);
   pruneSelections();
+}
+
+async function refreshPanel(view = state.view, { showLoading = false } = {}) {
+  if (state.loadingView === view) return;
+  state.loadingView = view;
+  state.lastRefreshAt = Date.now();
+  if (showLoading && state.view === view) renderPanelLoading();
+  try {
+    await loadPanel(view);
+    if (state.view === view) renderPanel();
+  } catch (error) {
+    if (state.view === view && !state.panelLoaded[view]) {
+      $("#panel").innerHTML = `<div class="card empty">${escapeHtml(error.message)}</div>`;
+    }
+    toast(error.message);
+  } finally {
+    if (state.loadingView === view) state.loadingView = "";
+  }
+}
+
+function refreshCurrentPanelSoon({ force = false } = {}) {
+  if (!state.user || state.user.role !== "admin") return;
+  const now = Date.now();
+  if (!force && now - state.lastRefreshAt < ADMIN_REFRESH_INTERVAL) return;
+  refreshPanel(state.view, { showLoading: !state.panelLoaded[state.view] });
 }
 
 async function login(event) {
@@ -832,6 +906,7 @@ async function login(event) {
 async function logout() {
   await api("/api/auth/logout", { method: "POST" }).catch(() => null);
   state.user = null;
+  clearAdminCache();
   renderLogin();
 }
 
@@ -964,6 +1039,8 @@ async function saveSettings(event) {
       })
     });
     toast("设置已保存");
+    state.panelLoaded.settings = true;
+    writeAdminCache("settings");
     renderSettings();
   } catch (error) {
     toast(error.message);
@@ -1004,6 +1081,8 @@ async function loadProviderModels(kind) {
       state.settings = data.settings;
       state.modelOptions.image = data.settings.imageModels || state.modelOptions.image || [];
       state.modelOptions.polish = data.settings.polishModels || state.modelOptions.polish || [];
+      state.panelLoaded.settings = true;
+      writeAdminCache("settings");
     }
     renderModelOptions(kind, data.models || []);
     const count = Array.isArray(data.models) ? data.models.length : 0;
@@ -1056,6 +1135,8 @@ async function clearKey() {
       method: "PATCH",
       body: JSON.stringify({ clearApiKey: true })
     });
+    state.panelLoaded.settings = true;
+    writeAdminCache("settings");
     toast("API Key 已清除");
     renderSettings();
   } catch (error) {
@@ -1069,6 +1150,8 @@ async function clearPolishKey() {
       method: "PATCH",
       body: JSON.stringify({ clearPromptPolishKey: true })
     });
+    state.panelLoaded.settings = true;
+    writeAdminCache("settings");
     toast("润色 Key 已清除");
     renderSettings();
   } catch (error) {
@@ -1083,8 +1166,9 @@ async function bootstrap() {
     state.firstRun = data.firstRun;
     if (!state.user) return renderLogin();
     if (state.user.role !== "admin") return renderDenied();
-    await loadPanel();
+    restoreAdminCache();
     renderAdmin();
+    refreshPanel(state.view, { showLoading: !state.panelLoaded[state.view] });
   } catch (error) {
     toast(error.message);
     renderLogin();
@@ -1092,4 +1176,8 @@ async function bootstrap() {
 }
 
 $("#logoutBtn").addEventListener("click", logout);
+window.addEventListener("focus", () => refreshCurrentPanelSoon());
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible") refreshCurrentPanelSoon();
+});
 bootstrap();
