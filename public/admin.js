@@ -771,6 +771,8 @@ async function loadPanel() {
     state.users = data.users || [];
   } else {
     state.settings = await api("/api/admin/settings");
+    state.modelOptions.image = state.settings.imageModels || [];
+    state.modelOptions.polish = state.settings.polishModels || [];
   }
   pruneSelections();
 }
@@ -962,6 +964,11 @@ async function loadProviderModels(kind) {
       method: "POST",
       body: JSON.stringify(readSettingsForm())
     });
+    if (data.settings) {
+      state.settings = data.settings;
+      state.modelOptions.image = data.settings.imageModels || state.modelOptions.image || [];
+      state.modelOptions.polish = data.settings.polishModels || state.modelOptions.polish || [];
+    }
     renderModelOptions(kind, data.models || []);
     const count = Array.isArray(data.models) ? data.models.length : 0;
     result.className = "success";

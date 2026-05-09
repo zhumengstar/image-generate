@@ -46,14 +46,34 @@ function toIso(value) {
   return new Date(value).toISOString();
 }
 
+function parseJsonArray(value) {
+  if (!value) return [];
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed)
+      ? parsed.map((item) => String(item || "").trim()).filter(Boolean)
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+function serializeStringArray(value) {
+  return JSON.stringify([...new Set((Array.isArray(value) ? value : [])
+    .map((item) => String(item || "").trim())
+    .filter(Boolean))]);
+}
+
 function mapSettings(row = {}) {
   return {
     openaiApiKey: row.openai_api_key || "",
     apiBaseUrl: row.api_base_url || process.env.AI_API_BASE_URL || process.env.OPENAI_BASE_URL || "",
     model: row.model || defaultModel,
+    imageModels: parseJsonArray(row.image_models_json),
     promptPolishApiKey: row.prompt_polish_api_key || process.env.PROMPT_POLISH_API_KEY || "",
     promptPolishBaseUrl: row.prompt_polish_base_url || process.env.PROMPT_POLISH_BASE_URL || "",
     promptPolishModel: row.prompt_polish_model || process.env.PROMPT_POLISH_MODEL || "gpt-5.5",
+    polishModels: parseJsonArray(row.polish_models_json),
     defaultCredits: Number(row.default_credits ?? 10),
     generationCreditCost: Number(row.generation_credit_cost ?? 1),
     allowRegistration: Boolean(row.allow_registration ?? 1),
@@ -166,9 +186,11 @@ async function runMigrations() {
       openai_api_key TEXT NULL,
       api_base_url VARCHAR(255) NOT NULL DEFAULT '',
       model VARCHAR(80) NOT NULL,
+      image_models_json LONGTEXT NULL,
       prompt_polish_api_key TEXT NULL,
       prompt_polish_base_url VARCHAR(255) NOT NULL DEFAULT '',
       prompt_polish_model VARCHAR(80) NOT NULL DEFAULT 'gpt-5.5',
+      polish_models_json LONGTEXT NULL,
       default_credits INT UNSIGNED NOT NULL DEFAULT 10,
       generation_credit_cost INT UNSIGNED NOT NULL DEFAULT 1,
       allow_registration TINYINT(1) NOT NULL DEFAULT 1,
@@ -189,6 +211,11 @@ async function runMigrations() {
     await db.query("ALTER TABLE app_settings ADD COLUMN prompt_polish_api_key TEXT NULL AFTER model");
   }
 
+  const [settingsImageModelsColumns] = await db.execute("SHOW COLUMNS FROM app_settings LIKE 'image_models_json'");
+  if (!settingsImageModelsColumns.length) {
+    await db.query("ALTER TABLE app_settings ADD COLUMN image_models_json LONGTEXT NULL AFTER model");
+  }
+
   const [settingsPolishBaseColumns] = await db.execute("SHOW COLUMNS FROM app_settings LIKE 'prompt_polish_base_url'");
   if (!settingsPolishBaseColumns.length) {
     await db.query("ALTER TABLE app_settings ADD COLUMN prompt_polish_base_url VARCHAR(255) NOT NULL DEFAULT '' AFTER prompt_polish_api_key");
@@ -197,6 +224,11 @@ async function runMigrations() {
   const [settingsPolishModelColumns] = await db.execute("SHOW COLUMNS FROM app_settings LIKE 'prompt_polish_model'");
   if (!settingsPolishModelColumns.length) {
     await db.query("ALTER TABLE app_settings ADD COLUMN prompt_polish_model VARCHAR(80) NOT NULL DEFAULT 'gpt-5.5' AFTER prompt_polish_base_url");
+  }
+
+  const [settingsPolishModelsColumns] = await db.execute("SHOW COLUMNS FROM app_settings LIKE 'polish_models_json'");
+  if (!settingsPolishModelsColumns.length) {
+    await db.query("ALTER TABLE app_settings ADD COLUMN polish_models_json LONGTEXT NULL AFTER prompt_polish_model");
   }
 
   const [settingsCostColumns] = await db.execute("SHOW COLUMNS FROM app_settings LIKE 'generation_credit_cost'");
@@ -388,9 +420,11 @@ async function updateSettings(patch) {
     openaiApiKey: "openai_api_key",
     apiBaseUrl: "api_base_url",
     model: "model",
+    imageModels: "image_models_json",
     promptPolishApiKey: "prompt_polish_api_key",
     promptPolishBaseUrl: "prompt_polish_base_url",
     promptPolishModel: "prompt_polish_model",
+    polishModels: "polish_models_json",
     defaultCredits: "default_credits",
     generationCreditCost: "generation_credit_cost",
     allowRegistration: "allow_registration",
@@ -401,7 +435,7 @@ async function updateSettings(patch) {
   for (const [key, column] of Object.entries(mapping)) {
     if (Object.hasOwn(patch, key)) {
       columns.push(`${column} = ?`);
-      values.push(patch[key]);
+      values.push(key === "imageModels" || key === "polishModels" ? serializeStringArray(patch[key]) : patch[key]);
     }
   }
 

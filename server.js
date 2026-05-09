@@ -227,8 +227,10 @@ function adminSettings(settings) {
     ...publicSettings(settings),
     apiBaseUrl: getOpenAIBaseUrl(settings),
     apiKeyMask: key ? `${key.slice(0, 7)}...${key.slice(-4)}` : "",
+    imageModels: Array.isArray(settings.imageModels) ? settings.imageModels : [],
     promptPolishBaseUrl: getPromptPolishBaseUrl(settings),
     promptPolishModel: getPromptPolishModel(settings),
+    polishModels: Array.isArray(settings.polishModels) ? settings.polishModels : [],
     promptPolishKeyMask: polishKey ? `${polishKey.slice(0, 7)}...${polishKey.slice(-4)}` : ""
   };
 }
@@ -1080,10 +1082,12 @@ async function routeApi(req, res, url) {
       apiKey: getOpenAIApiKey(settings),
       baseUrl: getOpenAIBaseUrl(settings)
     });
+    const savedSettings = await store.updateSettings({ imageModels: models });
     return sendJson(res, 200, {
       ok: true,
       endpoint,
-      models
+      models,
+      settings: adminSettings(savedSettings)
     });
   }
 
@@ -1097,10 +1101,12 @@ async function routeApi(req, res, url) {
       apiKey: getPromptPolishApiKey(settings),
       baseUrl: getPromptPolishBaseUrl(settings)
     });
+    const savedSettings = await store.updateSettings({ polishModels: models });
     return sendJson(res, 200, {
       ok: true,
       endpoint,
-      models
+      models,
+      settings: adminSettings(savedSettings)
     });
   }
 
