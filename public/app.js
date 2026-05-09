@@ -1262,8 +1262,9 @@ function cloneEditContext(context) {
 
 async function loadGenerationDetail(item) {
   if (!item?.id || String(item.id).startsWith("tmp_") || String(item.id).startsWith("prompt_")) return item;
+  if (!item.hasEditContext && !item.editContext) return item;
   const existing = state.history.find((entry) => String(entry.id) === String(item.id));
-  if (existing?.detailLoaded) return existing;
+  if (existing?.detailLoaded || existing?.editContext) return existing;
   const data = await api(`/api/images/${encodeURIComponent(item.id)}`);
   const detailed = mapHistoryGeneration(data.generation);
   detailed.detailLoaded = true;
@@ -1273,10 +1274,14 @@ async function loadGenerationDetail(item) {
 
 async function openImageEditorFromItem(item, fallbackImageUrl = "") {
   if (!item) return;
+  const imageUrl = item.images?.[0] || fallbackImageUrl || promptImageUrl(item.image || "");
+  if (imageUrl) openImageEditor(imageUrl, item.prompt, item);
+  if (!item.hasEditContext && !item.editContext) return;
   try {
     const detailed = await loadGenerationDetail(item);
-    const imageUrl = detailed?.images?.[0] || fallbackImageUrl || item.images?.[0] || promptImageUrl(item.image || "");
-    if (imageUrl) openImageEditor(imageUrl, detailed?.prompt || item.prompt, detailed || item);
+    if (detailed?.editContext) {
+      openImageEditor(detailed.images?.[0] || imageUrl, detailed.prompt || item.prompt, detailed);
+    }
   } catch (error) {
     showToast(error.message, "ri-error-warning-line");
   }
@@ -1380,6 +1385,7 @@ function mapHistoryGeneration(generation) {
     model: generation.model,
     isPublic: Boolean(generation.isPublic),
     editContext: generation.editContext || null,
+    hasEditContext: Boolean(generation.hasEditContext || generation.editContext),
     options: {
       size: generation.size,
       quality: generation.quality,

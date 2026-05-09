@@ -1246,6 +1246,7 @@ async function routeApi(req, res, url) {
       ...generation,
       usage: undefined,
       editContext: null,
+      hasEditContext: Boolean(generation.hasEditContext),
       imageUrl: `/api/images/${generation.id}/file`
     }));
     return sendJson(res, 200, {
@@ -1268,6 +1269,7 @@ async function routeApi(req, res, url) {
         ...generation,
         usage: undefined,
         editContext: generation.usage?.editContext || null,
+        hasEditContext: Boolean(generation.usage?.editContext || generation.hasEditContext),
         imageUrl: `/api/images/${generation.id}/file`
       }
     });

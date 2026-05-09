@@ -125,6 +125,7 @@ function mapGeneration(row) {
     isPublic: Boolean(row.is_public ?? 0),
     revisedPrompt: row.revised_prompt || "",
     usage,
+    hasEditContext: Boolean(row.has_edit_context ?? usage?.editContext),
     createdAt: toIso(row.created_at),
     deletedAt: toIso(row.deleted_at)
   };
@@ -824,7 +825,7 @@ async function listGenerationsForUser(userId, { limit = 60, offset = 0, includeA
   const normalizedOffset = Math.max(0, Number(offset) || 0);
   const columns = includeUsage
     ? "*"
-    : "id, user_id, prompt, model, size, quality, background, output_format, filename, is_public, revised_prompt, created_at, deleted_at";
+    : "id, user_id, prompt, model, size, quality, background, output_format, filename, is_public, revised_prompt, created_at, deleted_at, (usage_json LIKE '%editContext%') AS has_edit_context";
   const sql = includeAllUsers
     ? `SELECT ${columns} FROM generations WHERE deleted_at IS NULL ORDER BY created_at DESC LIMIT ${normalizedLimit} OFFSET ${normalizedOffset}`
     : `SELECT ${columns} FROM generations WHERE user_id = ? AND deleted_at IS NULL ORDER BY created_at DESC LIMIT ${normalizedLimit} OFFSET ${normalizedOffset}`;
