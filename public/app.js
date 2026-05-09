@@ -2534,7 +2534,7 @@ function workCardHtml(item) {
         <div class="work-footer">
           <span>${escapeHtml(formatDate(item.time))}${item.isPublic ? ` · ${text("publishToSquare")}` : ""}</span>
           <div class="work-actions">
-            ${saveActionHtml(item.images[0], `${item.id}.png`)}
+            <button type="button" data-work-view="${escapeHtml(item.id)}"><i class="ri-eye-line"></i>${state.lang === "zh" ? "查看" : "View"}</button>
             <button type="button" data-work-retry="${escapeHtml(item.id)}"><i class="ri-refresh-line"></i>${text("retry")}</button>
             <button type="button" data-work-editor="${escapeHtml(item.id)}"><i class="ri-magic-line"></i>${text("openEditor")}</button>
             <button class="work-delete" type="button" data-work-delete="${escapeHtml(item.id)}"><i class="ri-delete-bin-line"></i>${state.lang === "zh" ? "删除" : "Delete"}</button>
