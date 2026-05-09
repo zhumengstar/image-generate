@@ -1229,10 +1229,15 @@ async function routeApi(req, res, url) {
     const limit = Math.max(1, Math.min(200, Number.parseInt(url.searchParams.get("limit") || "80", 10) || 80));
     const offset = Math.max(0, Number.parseInt(url.searchParams.get("offset") || "0", 10) || 0);
     const includeAllUsers = current.user.role === "admin";
-    const generations = (await store.listGenerationsForUser(current.user.id, { limit, offset, includeAllUsers })).map((generation) => ({
+    const generations = (await store.listGenerationsForUser(current.user.id, {
+      limit,
+      offset,
+      includeAllUsers,
+      includeUsage: false
+    })).map((generation) => ({
       ...generation,
       usage: undefined,
-      editContext: generation.usage?.editContext || null,
+      editContext: null,
       imageUrl: `/api/images/${generation.id}/file`
     }));
     return sendJson(res, 200, {
@@ -1243,6 +1248,23 @@ async function routeApi(req, res, url) {
   }
 
   const imageMatch = url.pathname.match(/^\/api\/images\/([^/]+)$/);
+  if (imageMatch && req.method === "GET") {
+    const current = await getCurrentUser(req);
+    ensureAuthenticated(current);
+    const generation = await store.getGenerationById(imageMatch[1]);
+    if (!generation || !canTouchGeneration(current.user, generation) || generation.deletedAt) {
+      throw httpError("Image not found", 404);
+    }
+    return sendJson(res, 200, {
+      generation: {
+        ...generation,
+        usage: undefined,
+        editContext: generation.usage?.editContext || null,
+        imageUrl: `/api/images/${generation.id}/file`
+      }
+    });
+  }
+
   if (imageMatch && req.method === "DELETE") {
     const current = await getCurrentUser(req);
     ensureAuthenticated(current);

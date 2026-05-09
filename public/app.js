@@ -780,7 +780,7 @@ function renderRecentCreations() {
   $$("[data-recent-editor]", elements.recentMasonry).forEach((button) => {
     button.addEventListener("click", () => {
       const item = displayItems.find((entry) => String(entry.id) === button.dataset.recentEditor);
-      if (item?.image) openImageEditor(promptImageUrl(item.image), item.prompt, item);
+      if (item?.image) openImageEditorFromItem(item, promptImageUrl(item.image));
     });
   });
 }
@@ -826,7 +826,7 @@ function openRecentPreview(item, options = {}) {
   $("[data-preview-editor]", elements.modalLayer)?.addEventListener("click", () => {
     state.restoreWorksOnViewerClose = false;
     closeModal();
-    openImageEditor(imageUrl, item.prompt, item);
+    openImageEditorFromItem(item, imageUrl);
   });
   $("[data-preview-copy]", elements.modalLayer).addEventListener("click", async () => {
     await copyText(item.prompt);
@@ -1251,8 +1251,36 @@ function cloneEditContext(context) {
   return context ? JSON.parse(JSON.stringify(context)) : null;
 }
 
+async function loadGenerationDetail(item) {
+  if (!item?.id || String(item.id).startsWith("tmp_") || String(item.id).startsWith("prompt_")) return item;
+  const existing = state.history.find((entry) => String(entry.id) === String(item.id));
+  if (existing?.detailLoaded) return existing;
+  const data = await api(`/api/images/${encodeURIComponent(item.id)}`);
+  const detailed = mapHistoryGeneration(data.generation);
+  detailed.detailLoaded = true;
+  mergeHistoryItems([detailed], true);
+  return state.history.find((entry) => String(entry.id) === String(item.id)) || detailed;
+}
+
+async function openImageEditorFromItem(item, fallbackImageUrl = "") {
+  if (!item) return;
+  try {
+    const detailed = await loadGenerationDetail(item);
+    const imageUrl = detailed?.images?.[0] || fallbackImageUrl || item.images?.[0] || promptImageUrl(item.image || "");
+    if (imageUrl) openImageEditor(imageUrl, detailed?.prompt || item.prompt, detailed || item);
+  } catch (error) {
+    showToast(error.message, "ri-error-warning-line");
+  }
+}
+
 async function regenerateItem(item) {
   if (!item) return;
+  try {
+    item = await loadGenerationDetail(item);
+  } catch (error) {
+    showToast(error.message, "ri-error-warning-line");
+    return;
+  }
   if (!item.editContext) {
     state.draftPrompt = item.prompt;
     syncComposers();
@@ -1442,7 +1470,7 @@ function renderHistory() {
   $$("[data-edit-image]", elements.historyList).forEach((button) => {
     button.addEventListener("click", () => {
       const item = state.history.find((entry) => String(entry.id) === button.dataset.editImage);
-      if (item?.images?.[0]) openImageEditor(item.images[0], item.prompt, item);
+      if (item?.images?.[0]) openImageEditorFromItem(item, item.images[0]);
     });
   });
   $$("[data-view-image]", elements.historyList).forEach((button) => {
@@ -2608,7 +2636,7 @@ function bindWorksGrid(grid) {
       if (!item?.images?.[0]) return;
       state.restoreWorksOnViewerClose = false;
       closeModal();
-      openImageEditor(item.images[0], item.prompt, item);
+      openImageEditorFromItem(item, item.images[0]);
       return;
     }
 
