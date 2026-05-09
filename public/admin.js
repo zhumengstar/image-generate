@@ -146,9 +146,6 @@ function openRecordImagePreview(record) {
       <img src="${escapeHtml(record.imageUrl)}" alt="${escapeHtml(record.prompt || "图片预览")}">
       <div class="preview-meta">
         <p>${escapeHtml(record.prompt || "")}</p>
-        <a class="secondary" href="${escapeHtml(record.imageUrl)}" download="${escapeHtml(record.id || "image")}.png">
-          <i class="ri-download-line"></i> 下载
-        </a>
       </div>
     </section>
   `;
