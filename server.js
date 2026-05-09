@@ -1228,7 +1228,8 @@ async function routeApi(req, res, url) {
     ensureAuthenticated(current);
     const limit = Math.max(1, Math.min(200, Number.parseInt(url.searchParams.get("limit") || "80", 10) || 80));
     const offset = Math.max(0, Number.parseInt(url.searchParams.get("offset") || "0", 10) || 0);
-    const generations = (await store.listGenerationsForUser(current.user, limit, offset)).map((generation) => ({
+    const includeAllUsers = current.user.role === "admin";
+    const generations = (await store.listGenerationsForUser(current.user.id, { limit, offset, includeAllUsers })).map((generation) => ({
       ...generation,
       usage: undefined,
       editContext: generation.usage?.editContext || null,
