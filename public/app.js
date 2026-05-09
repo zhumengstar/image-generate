@@ -40,6 +40,7 @@ const state = {
   historyFullyLoaded: false,
   historyNextOffset: 0,
   historyLoading: false,
+  historyLoadPromise: null,
   restoreWorksOnViewerClose: false,
   restorePreviewOnViewerClose: null,
   editor: {
@@ -1366,18 +1367,22 @@ async function loadHistory({ limit = HISTORY_PRELOAD_LIMIT, offset = 0, append =
     state.historyNextOffset = 0;
     return;
   }
-  if (state.historyLoading) return;
+  if (state.historyLoading) return state.historyLoadPromise?.catch(() => null);
   state.historyLoading = true;
-  try {
+  state.historyLoadPromise = (async () => {
     const data = await api(`/api/images/history?limit=${encodeURIComponent(limit)}&offset=${encodeURIComponent(offset)}`);
     const items = [...(data.generations || [])].reverse().map(mapHistoryGeneration);
     mergeHistoryItems(items, append || offset > 0);
     state.historyNextOffset = Number(data.nextOffset ?? state.history.length);
     state.historyFullyLoaded = !data.hasMore || items.length < limit;
+  })();
+  try {
+    await state.historyLoadPromise;
   } catch (error) {
     showToast(error.message, "ri-error-warning-line");
   } finally {
     state.historyLoading = false;
+    state.historyLoadPromise = null;
     state.historyLoaded = true;
   }
 }
