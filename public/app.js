@@ -67,7 +67,9 @@ const state = {
 const MAX_EDITOR_IMAGES = 4;
 const MAX_HOME_REFERENCES = 1;
 const WORKS_BATCH_ROWS = 3;
+const WORKS_EAGER_ROWS = 1;
 const HISTORY_PRELOAD_LIMIT = 12;
+const TRANSPARENT_PIXEL = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==";
 
 const i18n = {
   zh: {
@@ -2523,11 +2525,16 @@ function renderWorksItems(grid) {
   renderWorksBatch(grid);
 }
 
-function workCardHtml(item) {
+function workCardHtml(item, index = 0, eagerCount = 1) {
+  const shouldLoadImage = index < eagerCount;
+  const imageSrc = shouldLoadImage ? item.images[0] : TRANSPARENT_PIXEL;
+  const imageAttrs = shouldLoadImage
+    ? `loading="${index === 0 ? "eager" : "lazy"}" fetchpriority="${index === 0 ? "high" : "low"}"`
+    : `class="work-image-deferred" data-work-src="${escapeHtml(item.images[0])}" loading="lazy" fetchpriority="low"`;
   return `
     <article class="work-card" data-work-id="${escapeHtml(item.id)}">
       <button class="work-image-button" type="button" data-work-view="${escapeHtml(item.id)}" aria-label="${escapeHtml(truncate(item.prompt, 80))}">
-        <img src="${escapeHtml(item.images[0])}" loading="lazy" decoding="async" alt="${escapeHtml(truncate(item.prompt, 80))}">
+        <img src="${escapeHtml(imageSrc)}" ${imageAttrs} decoding="async" alt="${escapeHtml(truncate(item.prompt, 80))}">
       </button>
       <div class="work-body">
         <button class="work-text-button" type="button" data-work-view="${escapeHtml(item.id)}">${escapeHtml(truncate(item.prompt, 92))}</button>
@@ -2545,6 +2552,37 @@ function workCardHtml(item) {
   `;
 }
 
+function hydrateWorksImages(grid) {
+  const images = $$("img[data-work-src]", grid);
+  if (!images.length) return;
+  const loadImage = (image) => {
+    if (!image?.dataset.workSrc) return;
+    image.src = image.dataset.workSrc;
+    image.removeAttribute("data-work-src");
+    image.classList.remove("work-image-deferred");
+  };
+  const setup = () => {
+    if (!("IntersectionObserver" in window)) {
+      images.forEach(loadImage);
+      return;
+    }
+    grid._workImageObserver?.disconnect();
+    grid._workImageObserver = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (!entry.isIntersecting) return;
+        grid._workImageObserver?.unobserve(entry.target);
+        loadImage(entry.target);
+      });
+    }, { root: grid.closest(".modal"), rootMargin: "180px" });
+    images.forEach((image) => grid._workImageObserver.observe(image));
+  };
+  if ("requestIdleCallback" in window) {
+    requestIdleCallback(setup, { timeout: 700 });
+  } else {
+    setTimeout(setup, 350);
+  }
+}
+
 function renderWorksBatch(grid) {
   const items = grid._worksItems || [];
   const offset = Number(grid.dataset.worksOffset || 0);
@@ -2556,7 +2594,10 @@ function renderWorksBatch(grid) {
     return;
   }
   requestAnimationFrame(() => {
-    grid.insertAdjacentHTML("beforeend", batch.map(workCardHtml).join(""));
+    const columns = getWorksColumnCount(grid);
+    const eagerCount = offset === 0 ? Math.max(1, columns * WORKS_EAGER_ROWS) : 0;
+    grid.insertAdjacentHTML("beforeend", batch.map((item, index) => workCardHtml(item, index, eagerCount)).join(""));
+    hydrateWorksImages(grid);
     const nextOffset = offset + batch.length;
     grid.dataset.worksOffset = String(nextOffset);
     if (nextOffset < items.length || !state.historyFullyLoaded) {
@@ -2567,8 +2608,11 @@ function renderWorksBatch(grid) {
 }
 
 function getWorksBatchSize(grid) {
-  const columns = getComputedStyle(grid).gridTemplateColumns.split(" ").filter(Boolean).length || 1;
-  return Math.max(1, columns * WORKS_BATCH_ROWS);
+  return Math.max(1, getWorksColumnCount(grid) * WORKS_BATCH_ROWS);
+}
+
+function getWorksColumnCount(grid) {
+  return getComputedStyle(grid).gridTemplateColumns.split(" ").filter(Boolean).length || 1;
 }
 
 function observeWorksSentinel(grid) {

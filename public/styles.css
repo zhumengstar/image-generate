@@ -1686,6 +1686,23 @@ a {
   background: #eef2f7;
 }
 
+.work-card img.work-image-deferred {
+  background:
+    linear-gradient(90deg, rgba(241, 245, 249, 0.86), rgba(226, 232, 240, 0.78), rgba(241, 245, 249, 0.86));
+  background-size: 220% 100%;
+  animation: workImagePulse 1.2s ease-in-out infinite;
+}
+
+@keyframes workImagePulse {
+  from {
+    background-position: 120% 0;
+  }
+
+  to {
+    background-position: -120% 0;
+  }
+}
+
 .image-viewer-modal {
   width: min(1120px, calc(100vw - 24px));
   height: min(860px, calc(100vh - 24px));
