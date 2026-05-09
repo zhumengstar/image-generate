@@ -17,7 +17,8 @@ const state = {
   recordSort: { key: "createdAt", dir: "desc" },
   userSort: { key: "role", dir: "asc" },
   selectedRecords: new Set(),
-  selectedUsers: new Set()
+  selectedUsers: new Set(),
+  loadingView: ""
 };
 
 async function api(path, options = {}) {
@@ -213,12 +214,7 @@ function renderAdmin() {
     <section id="panel"></section>
   `;
   $$("[data-view]").forEach((button) => {
-    button.addEventListener("click", async () => {
-      state.view = button.dataset.view;
-      await loadPanel();
-      renderAdmin();
-      renderPanel();
-    });
+    button.addEventListener("click", () => switchAdminView(button.dataset.view));
   });
   renderPanel();
 }
@@ -229,10 +225,48 @@ function renderPanel() {
   renderSettings();
 }
 
+function renderPanelLoading(label = "加载中...") {
+  const panel = $("#panel");
+  if (!panel) return;
+  panel.innerHTML = `
+    <div class="card admin-loading">
+      <i class="ri-loader-4-line"></i>
+      <span>${escapeHtml(label)}</span>
+    </div>
+  `;
+}
+
+async function switchAdminView(nextView) {
+  if (!nextView || nextView === state.view || state.loadingView === nextView) return;
+  state.view = nextView;
+  state.loadingView = nextView;
+  renderAdmin();
+  renderPanelLoading("正在加载...");
+  try {
+    await loadPanel(nextView);
+    if (state.view === nextView) renderPanel();
+  } catch (error) {
+    if (state.view === nextView) {
+      $("#panel").innerHTML = `<div class="card empty">${escapeHtml(error.message)}</div>`;
+    }
+    toast(error.message);
+  } finally {
+    if (state.loadingView === nextView) state.loadingView = "";
+  }
+}
+
 function matchesSearch(values, query) {
   if (!query) return true;
   const normalized = query.trim().toLowerCase();
   return values.some((value) => String(value || "").toLowerCase().includes(normalized));
+}
+
+function debounce(fn, wait = 120) {
+  let timer = 0;
+  return (...args) => {
+    window.clearTimeout(timer);
+    timer = window.setTimeout(() => fn(...args), wait);
+  };
 }
 
 function compareValues(left, right, dir = "asc") {
@@ -376,6 +410,7 @@ function setAllVisibleUsers(users, checked) {
 
 function renderRecords(focusTarget = "") {
   const records = filteredRecords();
+  const scheduleSearchRender = debounce(() => renderRecords("recordSearch"));
   const selectedVisibleCount = records.filter((record) => state.selectedRecords.has(record.id)).length;
   const allVisibleSelected = Boolean(records.length && selectedVisibleCount === records.length);
   $("#panel").innerHTML = `
@@ -447,7 +482,7 @@ function renderRecords(focusTarget = "") {
   `;
   $("#recordSearch").addEventListener("input", (event) => {
     state.recordFilters.q = event.target.value;
-    renderRecords("recordSearch");
+    scheduleSearchRender();
   });
   $("#recordStatusFilter").addEventListener("change", (event) => {
     state.recordFilters.status = event.target.value;
@@ -496,6 +531,7 @@ function renderRecords(focusTarget = "") {
 
 function renderUsers(focusTarget = "") {
   const users = filteredUsers();
+  const scheduleSearchRender = debounce(() => renderUsers("userSearch"));
   const selectableUsers = users.filter((user) => user.id !== state.user?.id);
   const selectedVisibleCount = selectableUsers.filter((user) => state.selectedUsers.has(user.id)).length;
   const allVisibleSelected = Boolean(selectableUsers.length && selectedVisibleCount === selectableUsers.length);
@@ -576,7 +612,7 @@ function renderUsers(focusTarget = "") {
   `;
   $("#userSearch").addEventListener("input", (event) => {
     state.userFilters.q = event.target.value;
-    renderUsers("userSearch");
+    scheduleSearchRender();
   });
   $("#userRoleFilter").addEventListener("change", (event) => {
     state.userFilters.role = event.target.value;
@@ -762,11 +798,11 @@ function renderSettings() {
   refreshModelOptionsFromState();
 }
 
-async function loadPanel() {
-  if (state.view === "records") {
+async function loadPanel(view = state.view) {
+  if (view === "records") {
     const data = await api("/api/admin/generations?limit=200");
     state.records = data.records || [];
-  } else if (state.view === "users") {
+  } else if (view === "users") {
     const data = await api("/api/admin/users");
     state.users = data.users || [];
   } else {
