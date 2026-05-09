@@ -2545,7 +2545,7 @@ function openMyWorksModal() {
           <button class="ghost-button works-refresh" type="button" data-works-refresh><i class="ri-refresh-line"></i></button>
         </div>
       </div>
-      <div id="worksGrid" class="works-grid"><div class="empty-message">${text("loadingWorks")}</div></div>
+      <div id="worksGrid" class="works-grid">${renderWorksLoading()}</div>
     </section>
   `);
   $("[data-works-refresh]", elements.modalLayer).addEventListener("click", () => loadMyWorks(true));
@@ -2562,7 +2562,7 @@ async function loadMyWorks(forceReload = false) {
   if (state.worksHistory.length && !forceReload) {
     renderWorksItems(grid);
   } else {
-    grid.innerHTML = `<div class="empty-message">${text("loadingWorks")}</div>`;
+    grid.innerHTML = renderWorksLoading();
   }
   if (forceReload || !state.worksHistory.length) {
     await loadWorksHistory({ limit: getWorksBatchSize(grid), offset: 0 });
@@ -2594,6 +2594,26 @@ function worksItemsFromHistory() {
   return [...state.worksHistory]
     .filter((item) => item.status === "done" && item.images?.[0])
     .sort((a, b) => new Date(b.time || 0) - new Date(a.time || 0));
+}
+
+function renderWorksLoading() {
+  return `
+    <div class="works-loading">
+      <div class="works-loading-title">
+        <i class="ri-loader-4-line"></i>
+        <span>${text("loadingWorks")}</span>
+      </div>
+      <div class="works-skeletons">
+        ${Array.from({ length: 3 }).map(() => `
+          <div class="works-skeleton-card">
+            <span></span>
+            <strong></strong>
+            <em></em>
+          </div>
+        `).join("")}
+      </div>
+    </div>
+  `;
 }
 
 function renderWorksItems(grid) {
