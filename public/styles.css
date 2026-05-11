@@ -1665,6 +1665,15 @@ a {
   transform: translateY(-1px);
 }
 
+.works-refresh.is-loading i {
+  animation: spin 0.9s linear infinite;
+}
+
+.works-refresh:disabled {
+  cursor: progress;
+  opacity: 0.78;
+}
+
 .works-tools {
   display: flex;
   align-items: flex-end;

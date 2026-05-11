@@ -75,6 +75,8 @@ const MAX_EDITOR_IMAGES = 4;
 const MAX_HOME_REFERENCES = 1;
 const WORKS_BATCH_ROWS = 3;
 const WORKS_EAGER_ROWS = 1;
+const WORKS_CACHE_PREFIX = "image2creat.worksCache.v1";
+const WORKS_CACHE_LIMIT = 72;
 const HISTORY_PRELOAD_LIMIT = 12;
 const TRANSPARENT_PIXEL = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==";
 
@@ -1436,6 +1438,48 @@ function resetWorksHistory() {
   state.worksNextOffset = 0;
 }
 
+function worksCacheKey() {
+  if (!state.user) return "";
+  const filter = state.user.role === "admin" ? state.worksUserFilter || "all" : "self";
+  return `${WORKS_CACHE_PREFIX}:${encodeURIComponent(state.user.id)}:${encodeURIComponent(filter)}`;
+}
+
+function readWorksCache() {
+  const key = worksCacheKey();
+  if (!key) return null;
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+function restoreWorksCache() {
+  const cache = readWorksCache();
+  if (!cache || !Array.isArray(cache.items) || !cache.items.length) return false;
+  state.worksHistory = cache.items;
+  state.worksNextOffset = Number(cache.nextOffset || cache.items.length);
+  state.worksFullyLoaded = Boolean(cache.fullyLoaded);
+  return true;
+}
+
+function writeWorksCache() {
+  const key = worksCacheKey();
+  if (!key) return;
+  try {
+    const items = worksItemsFromHistory().slice(0, WORKS_CACHE_LIMIT);
+    localStorage.setItem(key, JSON.stringify({
+      items,
+      nextOffset: Math.max(state.worksNextOffset || 0, items.length),
+      fullyLoaded: state.worksFullyLoaded,
+      updatedAt: Date.now()
+    }));
+  } catch {
+    // localStorage can be full or unavailable; works loading should remain functional.
+  }
+}
+
 function mergeWorksItems(items, append = false) {
   const merged = new Map();
   const source = append ? [...state.worksHistory, ...items] : items;
@@ -1446,6 +1490,7 @@ function mergeWorksItems(items, append = false) {
 async function loadWorksHistory({ limit, offset = 0, append = false } = {}) {
   if (!state.user || state.worksLoading) return;
   state.worksLoading = true;
+  const previousNextOffset = Number(state.worksNextOffset || 0);
   try {
     const params = new URLSearchParams({
       limit: String(limit || HISTORY_PRELOAD_LIMIT),
@@ -1457,8 +1502,12 @@ async function loadWorksHistory({ limit, offset = 0, append = false } = {}) {
     const data = await api(`/api/images/history?${params.toString()}`);
     const items = [...(data.generations || [])].reverse().map(mapHistoryGeneration);
     mergeWorksItems(items, append || offset > 0);
-    state.worksNextOffset = Number(data.nextOffset ?? state.worksHistory.length);
+    const nextOffset = Number(data.nextOffset ?? state.worksHistory.length);
+    state.worksNextOffset = append && offset === 0
+      ? Math.max(previousNextOffset, nextOffset)
+      : nextOffset;
     state.worksFullyLoaded = !data.hasMore || items.length < Number(params.get("limit"));
+    writeWorksCache();
   } catch (error) {
     showToast(error.message, "ri-error-warning-line");
   } finally {
@@ -2556,8 +2605,12 @@ function openMyWorksModal() {
 async function loadMyWorks(forceReload = false) {
   const grid = $("#worksGrid", elements.modalLayer);
   if (!grid) return;
+  const batchSize = getWorksBatchSize(grid);
   if (forceReload) {
     resetWorksHistory();
+  }
+  if (!forceReload && !state.worksHistory.length) {
+    restoreWorksCache();
   }
   if (state.worksHistory.length && !forceReload) {
     renderWorksItems(grid);
@@ -2565,10 +2618,30 @@ async function loadMyWorks(forceReload = false) {
     grid.innerHTML = renderWorksLoading();
   }
   if (forceReload || !state.worksHistory.length) {
-    await loadWorksHistory({ limit: getWorksBatchSize(grid), offset: 0 });
-    if (!$("#worksGrid", elements.modalLayer)) return;
+    setWorksRefreshState(true);
+    try {
+      await loadWorksHistory({ limit: batchSize, offset: 0 });
+      if (!$("#worksGrid", elements.modalLayer)) return;
+      renderWorksItems(grid);
+      return;
+    } finally {
+      setWorksRefreshState(false);
+    }
   }
-  renderWorksItems(grid);
+  setWorksRefreshState(true);
+  loadWorksHistory({ limit: batchSize, offset: 0, append: true }).then(() => {
+    const activeGrid = $("#worksGrid", elements.modalLayer);
+    if (activeGrid) renderWorksItems(activeGrid);
+  }).finally(() => {
+    setWorksRefreshState(false);
+  });
+}
+
+function setWorksRefreshState(isRefreshing) {
+  const button = $("[data-works-refresh]", elements.modalLayer);
+  if (!button) return;
+  button.classList.toggle("is-loading", Boolean(isRefreshing));
+  button.disabled = Boolean(isRefreshing);
 }
 
 async function setupWorksUserFilter() {
@@ -2577,7 +2650,8 @@ async function setupWorksUserFilter() {
   select.value = state.worksUserFilter || "";
   select.addEventListener("change", () => {
     state.worksUserFilter = select.value;
-    loadMyWorks(true);
+    resetWorksHistory();
+    loadMyWorks(false);
   });
   await loadWorksUsers();
   if (!$("[data-works-user-filter]", elements.modalLayer)) return;
@@ -2697,7 +2771,7 @@ function renderWorksBatch(grid) {
   const batch = items.slice(offset, offset + batchSize);
   $(".works-sentinel", grid)?.remove();
   if (!batch.length) {
-    if (!state.historyFullyLoaded) loadMoreWorks(grid);
+    if (!state.worksFullyLoaded) loadMoreWorks(grid);
     return;
   }
   requestAnimationFrame(() => {
@@ -2829,6 +2903,7 @@ async function deleteWork(id) {
     await api(`/api/images/${encodeURIComponent(id)}`, { method: "DELETE" });
     state.worksHistory = state.worksHistory.filter((entry) => String(entry.id) !== String(id));
     state.history = state.history.filter((entry) => String(entry.id) !== String(id));
+    writeWorksCache();
     renderHistory();
     renderRecentCreations();
     if (item.isPublic) await loadPublicGallery();
